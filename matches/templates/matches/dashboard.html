@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스쿼시 동호회 포털</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Pretendard', sans-serif; color: #333; }
+        .premium-card { background: #fff; border-radius: 20px; border: none; box-shadow: 0 4px 20px rgba(0,0,0,0.03); overflow: hidden; margin-bottom: 24px; padding: 20px; }
+        
+        .sticky-sidebar { position: sticky; top: 20px; }
+        
+        .btn-brand { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border-radius: 10px; font-weight: 600; }
+        .btn-brand:hover { color: white; opacity: 0.9; }
+        .match-box { padding: 12px; border-radius: 12px; border: 1px solid #edf2f7; background: #fafbfc; margin-bottom: 10px; cursor: pointer; }
+        .notice-item { border-bottom: 1px solid #eee; padding: 10px 0; cursor: pointer; }
+        .notice-item:last-child { border-bottom: none; }
+        .rank-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px dashed #eee; }
+        
+        .user-card { cursor: pointer; transition: 0.2s; user-select: none; border: 1px solid #e2e8f0; }
+        .user-card:hover { transform: scale(1.02); box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-color: #cbd5e1; }
+        .user-card.selected { background-color: #eff6ff !important; border-color: #3b82f6; }
+
+        /* 🌟 여기서부터 새로 추가된 랭킹 탭 디자인입니다 🌟 */
+        .ranking-tabs .nav-link { color: #94a3b8; transition: 0.2s; }
+        .ranking-tabs .nav-link:hover { color: #475569; background-color: transparent; }
+        .ranking-tabs .nav-link.active { background-color: #ffffff !important; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .ranking-tabs .tab-all.active { color: #333 !important; font-weight: 800; }
+        .ranking-tabs .tab-a.active { color: #dc3545 !important; font-weight: 800; }
+        .ranking-tabs .tab-b.active { color: #0d6efd !important; font-weight: 800; }
+        .ranking-tabs .tab-c.active { color: #198754 !important; font-weight: 800; }
+    </style>
+</head>
+<body>
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold m-0">🎾 스쿼시 동호회</h2>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#rankingModal">🏆 전체 랭킹 보기</button>
+            
+            {% if is_manager %}
+            <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#addMemberModal">👤 인원 추가</button>
+            <button class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#createMeetModal">📅 경기 일정 추가</button>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if messages %}
+        <script>
+            {% for message in messages %}
+                {% if 'login_error' in message.tags %}
+                    alert("{{ message }}");
+                {% endif %}
+            {% endfor %}
+        </script>
+
+        {% for message in messages %}
+            {% if 'login_error' not in message.tags %}
+            <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="premium-card mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold m-0">🔥 모임 일정</h5>
+                    {% if is_manager and meet and not meet.is_finalized %}
+                    <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#finalizeModal">
+                        오늘 모임 마감하기
+                    </button>
+                    {% endif %}
+                </div>
+                
+                {% if not meet %}
+                <div class="text-center py-5 bg-light rounded-3">
+                    <h4 class="fw-bold text-muted mb-2">현재 예정된 정기 모임이 없습니다.</h4>
+                    {% if is_manager %}
+                    <button class="btn btn-brand mt-3" data-bs-toggle="modal" data-bs-target="#createMeetModal">+ 새 일정 만들기</button>
+                    {% endif %}
+                </div>
+                {% else %}
+                <h6 class="text-primary fw-bold">
+                    {{ meet.title }} ({{ meet.date }}) 
+                    {% if meet.is_finalized %}<span class="badge bg-secondary ms-2">마감됨</span>{% endif %}
+                </h6>
+                <div class="row mt-3 justify-content-center"> 
+                    {% if matches_2 %}
+                    <div class="col-md-6 mb-3">
+                        <div class="p-3 bg-light rounded-3">
+                            <h6 class="fw-bold text-primary mb-3">🔵 2 코트</h6>
+                            {% for m in matches_2 %}
+                            <div class="match-box d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#scoreModal{{ m.id }}">
+                                <div class="w-100 text-center">
+                                    <span class="{% if m.applied_handicap > 0 and m.player1.group < m.player2.group %}text-danger fw-bold{% endif %}">
+                                        {{ m.player1.name }} {% if m.applied_handicap > 0 and m.player1.group < m.player2.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
+                                    </span>
+                                    <span class="mx-2 text-muted small">vs</span>
+                                    <span class="{% if m.applied_handicap > 0 and m.player2.group < m.player1.group %}text-danger fw-bold{% endif %}">
+                                        {{ m.player2.name }} {% if m.applied_handicap > 0 and m.player2.group < m.player1.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if matches_3 %}
+                    <div class="col-md-6 mb-3">
+                        <div class="p-3 bg-light rounded-3">
+                            <h6 class="fw-bold text-success mb-3">🟢 3 코트</h6>
+                            {% for m in matches_3 %}
+                            <div class="match-box d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#scoreModal{{ m.id }}">
+                                <div class="w-100 text-center">
+                                    <span class="{% if m.applied_handicap > 0 and m.player1.group > m.player2.group %}text-danger fw-bold{% endif %}">
+                                        {{ m.player1.name }} {% if m.applied_handicap > 0 and m.player1.group > m.player2.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
+                                    </span>
+                                    <span class="mx-2 text-muted small">vs</span>
+                                    <span class="{% if m.applied_handicap > 0 and m.player2.group > m.player1.group %}text-danger fw-bold{% endif %}">
+                                        {{ m.player2.name }} {% if m.applied_handicap > 0 and m.player2.group > m.player1.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if completed and not is_manager %}
+                <div class="mt-4 pt-3 border-top">
+                    <h6 class="fw-bold mb-3 text-muted">✅ 완료된 경기 결과</h6>
+                    <div class="row g-3">
+                        {% for m in completed %}
+                        <div class="col-md-6">
+                            <div class="p-3 bg-white border rounded-3 shadow-sm user-card" data-bs-toggle="modal" data-bs-target="#viewScoreModal{{ m.id }}">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="badge bg-light text-dark border">{{ m.court }}코트</span>
+                                    <span class="small text-muted" style="font-size: 0.75rem;">
+                                        {% if m.recorded_by %}입력: {{ m.recorded_by.profile.name }}{% endif %}
+                                    </span>
+                                </div>
+                                <div class="d-flex justify-content-center align-items-center gap-3 fw-bold">
+                                    <div class="text-end" style="width: 40%;"><span class="{% if m.p1_score > m.p2_score %}text-primary{% endif %}">{{ m.player1.name }}</span> <span class="fs-5">{{ m.p1_score }}</span></div>
+                                    <div class="text-muted small">vs</div>
+                                    <div class="text-start" style="width: 40%;"><span class="fs-5">{{ m.p2_score }}</span> <span class="{% if m.p2_score > m.p1_score %}text-primary{% endif %}">{{ m.player2.name }}</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if is_manager %}
+                <div class="mt-4 pt-4 border-top">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold m-0">🛠️ 경기 일정 관리 (사장님 전용)</h6>
+                        
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'export_schedule_vertical' meet.id %}" class="btn btn-sm btn-outline-success fw-bold">
+                                ⬇️ 세로형 엑셀
+                            </a>
+                            <a href="{% url 'export_schedule_horizontal' meet.id %}" class="btn btn-sm btn-success fw-bold">
+                                ⬇️ 좌우 분할 엑셀
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover align-middle" style="font-size: 0.85rem;">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>코트</th>
+                                    <th>매치업</th>
+                                    <th>결과(점수)</th>
+                                    <th>상태</th>
+                                    <th>관리</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in all_matches %}
+                                <tr>
+                                    <td>{{ m.court }}코트</td>
+                                    <td>{{ m.player1.name }} vs {{ m.player2.name }}</td>
+                                    <td>
+                                        {% if m.is_completed %}{{ m.p1_score }} : {{ m.p2_score }}{% else %}-{% endif %}
+                                    </td>
+                                    <td>
+                                        {% if m.is_completed %}<span class="badge bg-secondary">완료</span>{% else %}<span class="badge bg-primary">진행중</span>{% endif %}
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-xs btn-outline-dark py-0" data-bs-toggle="modal" data-bs-target="#editMatchModal{{ m.id }}">수정</button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% endif %} 
+            </div>
+
+            <div class="premium-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold m-0">📢 동호회 공지사항</h5>
+                    {% if is_manager %}<button class="btn btn-sm btn-outline-secondary">글쓰기</button>{% endif %}
+                </div>
+                <div>
+                    {% for notice in notices %}
+                    <div class="notice-item d-flex justify-content-between">
+                        <span>
+                            {% if notice.is_important %}<span class="badge bg-danger me-2">필독</span>{% endif %}
+                            {{ notice.title }}
+                        </span>
+                        <small class="text-muted">{{ notice.created_at|date:"m/d" }}</small>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center py-3">등록된 공지사항이 없습니다.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="premium-card mb-4 bg-light border">
+                <div class="text-center">
+                    <h5 class="fw-bold">{{ user.profile.name|default:user.username }} 님</h5>
+                    <p class="text-muted mb-3">{{ user.profile.group }}조 | 이달의 승률: <strong class="text-primary">{{ user_stat.win_rate }}%</strong></p>
+                    
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-secondary btn-sm fw-bold" data-bs-toggle="modal" data-bs-target="#passwordModal">🔒 비밀번호 변경</button>
+                        
+                        {% if user.is_superuser %}
+                        <a href="/admin/" class="btn btn-dark btn-sm">⚙️ 총관리자 (Admin)</a>
+                        {% endif %}
+                        <form action="{% url 'logout' %}" method="post">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger btn-sm w-100">로그아웃</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="sticky-sidebar">
+                <div class="premium-card border border-warning border-opacity-50 p-3">
+                    <h5 class="fw-bold text-center mb-4">🏆 명예의 전당</h5>
+                    
+                    <div class="row text-center g-0">
+                        <div class="col-4 border-end border-secondary border-opacity-25 px-1">
+                            <h6 class="fw-bold text-danger mb-3 small">🅰️ A조</h6>
+                            {% for stat in top_a %}
+                            <div class="mb-3">
+                                <div class="small fw-bold text-truncate" style="font-size: 0.85rem;">
+                                    {{ forloop.counter }}위 {{ stat.profile.name }}
+                                </div>
+                                <span class="badge bg-danger mt-1" style="font-size: 0.7rem;">{{ stat.win_rate }}%</span>
+                            </div>
+                            {% empty %}
+                            <div class="small text-muted py-3" style="font-size: 0.8rem;">기록 없음</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="col-4 border-end border-secondary border-opacity-25 px-1">
+                            <h6 class="fw-bold text-primary mb-3 small">🅱️ B조</h6>
+                            {% for stat in top_b %}
+                            <div class="mb-3">
+                                <div class="small fw-bold text-truncate" style="font-size: 0.85rem;">
+                                    {{ forloop.counter }}위 {{ stat.profile.name }}
+                                </div>
+                                <span class="badge bg-primary mt-1" style="font-size: 0.7rem;">{{ stat.win_rate }}%</span>
+                            </div>
+                            {% empty %}
+                            <div class="small text-muted py-3" style="font-size: 0.8rem;">기록 없음</div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="col-4 px-1">
+                            <h6 class="fw-bold text-success mb-3 small">🅲️ C조</h6>
+                            {% for stat in top_c %}
+                            <div class="mb-3">
+                                <div class="small fw-bold text-truncate" style="font-size: 0.85rem;">
+                                    {{ forloop.counter }}위 {{ stat.profile.name }}
+                                </div>
+                                <span class="badge bg-success mt-1" style="font-size: 0.7rem;">{{ stat.win_rate }}%</span>
+                            </div>
+                            {% empty %}
+                            <div class="small text-muted py-3" style="font-size: 0.8rem;">기록 없음</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="rankingModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-center">
+                <h4 class="modal-title fw-bold m-0">🏆 동호회 전체 랭킹</h4>
+                <button type="button" class="btn-close m-0" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                
+                <ul class="nav nav-pills nav-fill mb-4 bg-light p-1 rounded-pill ranking-tabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link tab-all active rounded-pill fw-bold" data-bs-toggle="pill" data-bs-target="#rankAllTab">전체 랭킹</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link tab-a rounded-pill fw-bold" data-bs-toggle="pill" data-bs-target="#rankATab">A조 랭킹</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link tab-b rounded-pill fw-bold" data-bs-toggle="pill" data-bs-target="#rankBTab">B조 랭킹</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link tab-c rounded-pill fw-bold" data-bs-toggle="pill" data-bs-target="#rankCTab">C조 랭킹</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" style="min-height: 400px;">
+                    
+                    <div class="tab-pane fade show active" id="rankAllTab">
+                        <div class="table-responsive border rounded-3">
+                            <table class="table table-hover align-middle m-0 text-center">
+                                <thead class="table-light"><tr><th style="width:15%">순위</th><th style="width:20%">조</th><th style="width:35%">이름</th><th style="width:30%">승률 (승/패)</th></tr></thead>
+                                <tbody>
+                                    {% for stat in all_stats_sorted %}
+                                    <tr {% if forloop.counter <= 3 %}class="table-warning fw-bold"{% endif %}>
+                                        <td>
+                                            {% if forloop.counter == 1 %}🥇
+                                            {% elif forloop.counter == 2 %}🥈
+                                            {% elif forloop.counter == 3 %}🥉
+                                            {% else %}{{ forloop.counter }}{% endif %}
+                                        </td>
+                                        <td><span class="badge bg-secondary">{{ stat.profile.group }}조</span></td>
+                                        <td>{{ stat.profile.name }}</td>
+                                        <td><strong class="text-primary">{{ stat.win_rate }}%</strong> <span class="text-muted small">({{ stat.wins }}승 {{ stat.losses }}패)</span></td>
+                                    </tr>
+                                    {% empty %}<tr><td colspan="4" class="py-4 text-muted">아직 경기 기록이 없습니다.</td></tr>{% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="rankATab">
+                        <div class="table-responsive border rounded-3 border-danger border-opacity-25">
+                            <table class="table table-hover align-middle m-0 text-center">
+                                <thead class="table-light"><tr><th style="width:15%">순위</th><th style="width:35%">이름</th><th style="width:50%">승률 (승/패)</th></tr></thead>
+                                <tbody>
+                                    {% for stat in all_a %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td class="fw-bold">{{ stat.profile.name }}</td>
+                                        <td><strong class="text-danger">{{ stat.win_rate }}%</strong> <span class="text-muted small">({{ stat.wins }}승 {{ stat.losses }}패)</span></td>
+                                    </tr>
+                                    {% empty %}<tr><td colspan="3" class="py-4 text-muted">A조 인원이 없습니다.</td></tr>{% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="rankBTab">
+                        <div class="table-responsive border rounded-3 border-primary border-opacity-25">
+                            <table class="table table-hover align-middle m-0 text-center">
+                                <thead class="table-light"><tr><th style="width:15%">순위</th><th style="width:35%">이름</th><th style="width:50%">승률 (승/패)</th></tr></thead>
+                                <tbody>
+                                    {% for stat in all_b %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td class="fw-bold">{{ stat.profile.name }}</td>
+                                        <td><strong class="text-primary">{{ stat.win_rate }}%</strong> <span class="text-muted small">({{ stat.wins }}승 {{ stat.losses }}패)</span></td>
+                                    </tr>
+                                    {% empty %}<tr><td colspan="3" class="py-4 text-muted">B조 인원이 없습니다.</td></tr>{% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="rankCTab">
+                        <div class="table-responsive border rounded-3 border-success border-opacity-25">
+                            <table class="table table-hover align-middle m-0 text-center">
+                                <thead class="table-light"><tr><th style="width:15%">순위</th><th style="width:35%">이름</th><th style="width:50%">승률 (승/패)</th></tr></thead>
+                                <tbody>
+                                    {% for stat in all_c %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td class="fw-bold">{{ stat.profile.name }}</td>
+                                        <td><strong class="text-success">{{ stat.win_rate }}%</strong> <span class="text-muted small">({{ stat.wins }}승 {{ stat.losses }}패)</span></td>
+                                    </tr>
+                                    {% empty %}<tr><td colspan="3" class="py-4 text-muted">C조 인원이 없습니다.</td></tr>{% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div class="modal-footer border-0 pb-4 px-4 d-flex justify-content-center">
+                <button type="button" class="btn btn-light rounded-pill px-5 fw-bold" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if is_manager %}
+<div class="modal fade" id="createMeetModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <form action="{% url 'create_meet_matches' %}" method="POST" class="modal-content border-0 shadow-lg" style="border-radius: 20px;" onsubmit="return validateMeetForm()">
+            {% csrf_token %}
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <h4 class="modal-title fw-bold">📅 새 모임 & 대진표 생성</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4 py-4">
+                <div class="row mb-3"> 
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label class="form-label fw-bold text-muted small">모임 이름</label>
+                        <input type="text" name="title" class="form-control form-control-lg bg-light border-0" placeholder="예: 4월 정기 동호회" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small">진행 날짜</label>
+                        <input type="date" name="date" class="form-control form-control-lg bg-light border-0" required>
+                    </div>
+                </div>
+                
+                <div class="mb-4 p-3 bg-light rounded-3 border text-center">
+                    <label class="form-label fw-bold text-muted small mb-3 d-block text-start">사용할 코트 선택</label>
+                    <div class="d-flex justify-content-center gap-5">
+                        <div class="d-flex flex-column align-items-center">
+                            <label class="form-check-label fw-bold mb-2" for="court2" style="cursor: pointer;">🔵 2 코트</label>
+                            <div class="form-check form-switch m-0 p-0 d-flex justify-content-center">
+                                <input class="form-check-input ms-0 mt-0" type="checkbox" role="switch" name="courts" value="2" id="court2" checked style="transform: scale(1.5); cursor: pointer;">
+                            </div>
+                        </div>
+                        <div class="d-flex flex-column align-items-center">
+                            <label class="form-check-label fw-bold mb-2" for="court3" style="cursor: pointer;">🟢 3 코트</label>
+                            <div class="form-check form-switch m-0 p-0 d-flex justify-content-center">
+                                <input class="form-check-input ms-0 mt-0" type="checkbox" role="switch" name="courts" value="3" id="court3" checked style="transform: scale(1.5); cursor: pointer;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <label class="form-label fw-bold text-muted small mb-2">참가 인원 선택 (이름을 클릭하면 참가 명단으로 이동합니다 👉)</label>
+                <div class="row">
+                    <div class="col-6">
+                        <div class="p-2 bg-light rounded text-center fw-bold small mb-2 text-muted">기존 전체 인원</div>
+                        <div class="mb-2">
+                            <input type="text" id="memberSearch" class="form-control form-control-sm border-secondary border-opacity-50" placeholder="🔍 이름 검색 (예: 김)" onkeyup="filterMembers()">
+                        </div>
+                        <div id="pool-list" class="border rounded p-2" style="height: 250px; overflow-y: auto; background: #f8fafc;">
+                            {% for profile in all_profiles %}
+                            <div class="user-card p-2 mb-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center" data-id="{{ profile.id }}" onclick="togglePlayer(this)">
+                                <span class="fw-bold profile-name">{{ profile.name }}</span>
+                                <span class="badge bg-secondary">{{ profile.group }}조</span>
+                            </div>
+                            {% empty %}
+                            <p class="text-muted small text-center mt-4">등록된 회원이 없습니다.</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded text-center fw-bold small mb-2 text-white" style="background: linear-gradient(135deg, #6366f1, #4f46e5);">
+                            이번 참가 명단 (<span id="participant-count">0</span>명)
+                        </div>
+                        <div class="mb-2 d-flex align-items-center justify-content-center text-muted" style="height: 31px;">
+                            <span style="font-size: 0.8rem;">👆 이름 클릭 시 다시 왼쪽으로 이동</span>
+                        </div>
+                        <div id="participant-list" class="border rounded p-2" style="height: 250px; overflow-y: auto; background: #eff6ff; border-color: #bfdbfe !important;">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="hidden-inputs" style="display: none;">
+                    {% for profile in all_profiles %}
+                    <input type="checkbox" name="profiles" value="{{ profile.id }}" id="hidden-chk-{{ profile.id }}">
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 pb-4 px-4">
+                <button type="submit" class="btn btn-brand w-100 btn-lg">선택 완료 및 대진표 자동 생성 🚀</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="addMemberModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <h4 class="modal-title fw-bold">👤 신규 동호인 추가</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4 py-3">
+                <ul class="nav nav-pills nav-fill mb-4 bg-light p-1 rounded-pill" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active rounded-pill fw-bold" data-bs-toggle="pill" data-bs-target="#singleAddTab">개별 추가</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link rounded-pill fw-bold" data-bs-toggle="pill" data-bs-target="#bulkAddTab">엑셀 일괄 추가</button>
+                    </li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="singleAddTab">
+                        <form action="{% url 'add_member_admin' %}" method="POST">
+                            {% csrf_token %}
+                            <div class="row mb-3">
+                                <div class="col"><label class="form-label fw-bold text-muted small">접속 아이디</label><input type="text" name="username" class="form-control bg-light" required placeholder="예: user123"></div>
+                                <div class="col"><label class="form-label fw-bold text-muted small">초기 비밀번호</label><input type="text" name="password" class="form-control bg-light" required value="1234"></div>
+                            </div>
+                            <div class="mb-3"><label class="form-label fw-bold text-muted small">실명</label><input type="text" name="name" class="form-control bg-light" required placeholder="홍길동"></div>
+                            <div class="row mb-4">
+                                <div class="col"><label class="form-label fw-bold text-muted small">조 (등급)</label><select name="group" class="form-select bg-light" required><option value="A">A조</option><option value="B" selected>B조</option><option value="C">C조</option></select></div>
+                                <div class="col"><label class="form-label fw-bold text-muted small">성별</label><select name="gender" class="form-select bg-light" required><option value="M" selected>남성</option><option value="F">여성</option></select></div>
+                            </div>
+                            <button type="submit" class="btn btn-dark w-100 btn-lg">이 회원 추가하기</button>
+                        </form>
+                    </div>
+                    <div class="tab-pane fade" id="bulkAddTab">
+                        <div class="text-center mb-4">
+                            <p class="text-muted small mb-2">정해진 양식에 맞춰 여러 명의 회원을 한 번에 등록합니다.</p>
+                            <a href="{% url 'download_template' %}" class="btn btn-outline-success btn-sm fw-bold">📥 초기 셋팅용 엑셀(CSV) 양식 다운로드</a>
+                        </div>
+                        <hr class="border-secondary border-opacity-25 mb-4">
+                        <form action="{% url 'upload_bulk' %}" method="POST" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <div class="mb-4">
+                                <label class="form-label fw-bold text-muted small">작성된 파일 업로드</label>
+                                <input class="form-control bg-light" type="file" name="excel_file" accept=".csv" required>
+                            </div>
+                            <button type="submit" class="btn btn-brand w-100 btn-lg">데이터 일괄 업로드 🚀</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if meet and not meet.is_finalized %}
+<div class="modal fade" id="finalizeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-body text-center p-5">
+                <div class="display-1 mb-3">🏁</div>
+                <h4 class="fw-bold mb-3">금일 동호회 모임을<br>마무리 하시겠습니까?</h4>
+                <p class="text-muted mb-4">마감 시 모든 경기 결과가 DB에 확정 기록되며,<br>랭킹 점수에 즉시 반영됩니다.</p>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-light w-100 py-3 fw-bold" data-bs-dismiss="modal">아니오</button>
+                    <a href="{% url 'finalize_meet' meet.id %}" class="btn btn-danger w-100 py-3 fw-bold">네, 마감합니다</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endif %} 
+
+{% if meet %}
+    {% for m in all_matches %}
+    <div class="modal fade" id="scoreModal{{ m.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <form action="{% url 'record_score' m.id %}" method="POST" class="modal-content border-0 shadow" style="border-radius: 20px;">
+                {% csrf_token %}
+                <div class="modal-body text-center p-4">
+                    <h5 class="fw-bold mb-1">점수 입력</h5>
+                    <p class="text-danger small mb-4 fw-bold">핸디캡 {{ m.applied_handicap }}점 적용됨</p>
+                    <div class="d-flex justify-content-center align-items-center gap-3 mb-4">
+                        <div class="text-center">
+                            <label class="d-block mb-2 fw-bold">{{ m.player1.name }}</label>
+                            <input type="number" name="p1_score" class="form-control form-control-lg text-center" style="width: 80px;" required>
+                        </div>
+                        <div class="fs-3 fw-bold text-muted">:</div>
+                        <div class="text-center">
+                            <label class="d-block mb-2 fw-bold">{{ m.player2.name }}</label>
+                            <input type="number" name="p2_score" class="form-control form-control-lg text-center" style="width: 80px;" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-dark w-100 rounded-pill">결과 확정</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
+
+{% if is_manager %}
+    {% for m in all_matches %}
+    <div class="modal fade" id="editMatchModal{{ m.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="{% url 'update_match' m.id %}" method="POST" class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                {% csrf_token %}
+                <div class="modal-header border-0 pt-4 px-4">
+                    <h5 class="fw-bold">경기 정보 수정</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body px-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">코트 변경</label>
+                        <select name="court" class="form-select bg-light border-0">
+                            <option value="2" {% if m.court == 2 %}selected{% endif %}>🔵 2 코트</option>
+                            <option value="3" {% if m.court == 3 %}selected{% endif %}>🟢 3 코트</option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label small fw-bold">선수 1</label>
+                            <select name="player1" class="form-select bg-light border-0">
+                                {% for p in all_profiles %}<option value="{{ p.id }}" {% if m.player1.id == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label small fw-bold">선수 2</label>
+                            <select name="player2" class="form-select bg-light border-0">
+                                {% for p in all_profiles %}<option value="{{ p.id }}" {% if m.player2.id == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    {% if m.is_completed %}
+                    <div class="row">
+                        <div class="col-6"><label class="small fw-bold">점수 1</label><input type="number" name="p1_score" value="{{ m.p1_score }}" class="form-control bg-light border-0"></div>
+                        <div class="col-6"><label class="small fw-bold">점수 2</label><input type="number" name="p2_score" value="{{ m.p2_score }}" class="form-control bg-light border-0"></div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer border-0 pb-4">
+                    <button type="submit" class="btn btn-brand w-100">정보 업데이트</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<div class="modal fade" id="passwordModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form action="{% url 'change_password' %}" method="POST" class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            {% csrf_token %}
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <h5 class="modal-title fw-bold">🔒 비밀번호 변경</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4 py-4">
+                <div class="mb-3">
+                    <label class="form-label small fw-bold text-muted">현재 비밀번호</label>
+                    <input type="password" name="old_password" class="form-control bg-light border-0" required>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-bold text-muted">새 비밀번호</label>
+                    <input type="password" name="new_password" class="form-control bg-light border-0" required>
+                </div>
+            </div>
+            <div class="modal-footer border-0 pt-0 pb-4 px-4">
+                <button type="submit" class="btn btn-dark w-100">변경하기</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if not is_manager and completed %}
+    {% for m in completed %}
+    <div class="modal fade" id="viewScoreModal{{ m.id }}" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+                <div class="modal-body text-center p-4">
+                    <div class="text-success mb-2" style="font-size: 2rem;">🏆</div>
+                    <h5 class="fw-bold mb-3">경기 결과</h5>
+                    
+                    <div class="d-flex justify-content-center align-items-center gap-3 mb-2 fs-5 fw-bold">
+                        <div>{{ m.player1.name }}<br><span class="text-primary fs-3">{{ m.p1_score }}</span></div>
+                        <div class="text-muted">:</div>
+                        <div>{{ m.player2.name }}<br><span class="text-primary fs-3">{{ m.p2_score }}</span></div>
+                    </div>
+                    
+                    {% if m.recorded_by %}
+                    <p class="text-muted small mb-4">입력자: {{ m.recorded_by.profile.name }}</p>
+                    {% endif %}
+                    
+                    <div class="alert alert-light border-danger border-opacity-25 text-danger small mb-0 fw-bold" style="word-break: keep-all;">
+                        🚫 점수 수정은 사장님께 문의해 주세요.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    function filterMembers() {
+        const input = document.getElementById('memberSearch').value.toLowerCase(); 
+        const poolList = document.getElementById('pool-list');
+        const cards = poolList.getElementsByClassName('user-card'); 
+
+        for (let i = 0; i < cards.length; i++) {
+            let nameSpan = cards[i].querySelector('.profile-name');
+            if (nameSpan) {
+                let name = nameSpan.textContent || nameSpan.innerText;
+                if (name.toLowerCase().indexOf(input) > -1) {
+                    cards[i].classList.remove('d-none');
+                } else {
+                    cards[i].classList.add('d-none'); 
+                }
+            }
+        }
+    }
+
+    function togglePlayer(element) {
+        const poolList = document.getElementById('pool-list');
+        const participantList = document.getElementById('participant-list');
+        const userId = element.getAttribute('data-id');
+        const checkbox = document.getElementById('hidden-chk-' + userId);
+
+        if (element.parentElement.id === 'pool-list') {
+            participantList.appendChild(element);
+            checkbox.checked = true;
+            element.classList.add('selected');
+            element.querySelector('.badge').classList.replace('bg-secondary', 'bg-primary');
+        } else {
+            poolList.appendChild(element);
+            checkbox.checked = false;
+            element.classList.remove('selected');
+            element.querySelector('.badge').classList.replace('bg-primary', 'bg-secondary');
+        }
+
+        document.getElementById('participant-count').innerText = participantList.children.length;
+    }
+
+    function validateMeetForm() {
+        const court2 = document.getElementById('court2').checked;
+        const court3 = document.getElementById('court3').checked;
+        if (!court2 && !court3) {
+            alert("경기를 진행할 코트를 최소 하나 이상 선택해주세요!");
+            return false; 
+        }
+
+        const count = document.getElementById('participant-list').children.length;
+        if (count < 2) {
+            alert("경기를 생성하려면 최소 2명 이상의 참가 인원이 필요합니다!");
+            return false;
+        }
+        
+        return true; 
+    }
+</script>
+</body>
+</html>

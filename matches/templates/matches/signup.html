@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스쿼시 동호회 - 회원가입</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" />
+    <style>
+        body { background-color: #f4f7f6; font-family: 'Pretendard', sans-serif; height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .signup-card { background: #fff; border-radius: 20px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.05); padding: 40px; width: 100%; max-width: 500px; }
+        .btn-brand { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border-radius: 12px; font-weight: 600; padding: 12px; }
+        .btn-brand:hover { color: white; opacity: 0.9; transform: translateY(-1px); }
+    </style>
+</head>
+<body>
+
+<div class="signup-card">
+    <div class="text-center mb-4">
+        <h2 class="fw-bold">🎾 회원가입</h2>
+        <p class="text-muted">스쿼시 동호회에 오신 것을 환영합니다.</p>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-danger py-2">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+
+    <form method="POST" action="{% url 'signup' %}">
+        {% csrf_token %}
+        
+        <div class="mb-3">
+            <label class="form-label fw-bold text-muted small">아이디</label>
+            <input type="text" name="username" class="form-control form-control-lg bg-light" required placeholder="로그인에 사용할 아이디">
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label fw-bold text-muted small">비밀번호</label>
+            <input type="password" name="password" class="form-control form-control-lg bg-light" required>
+        </div>
+
+        <hr class="my-4 text-muted">
+
+        <div class="mb-3">
+            <label class="form-label fw-bold text-muted small">실명 (이름)</label>
+            <input type="text" name="name" class="form-control form-control-lg bg-light" required placeholder="홍길동">
+        </div>
+
+        <div class="row mb-4">
+            <div class="col">
+                <label class="form-label fw-bold text-muted small">소속 조</label>
+                <select name="group" class="form-select form-select-lg bg-light" required>
+                    <option value="A">A조 (10년차 이상)</option>
+                    <option value="B" selected>B조 (5년차 내외)</option>
+                    <option value="C">C조 (3년차 미만)</option>
+                </select>
+            </div>
+            <div class="col">
+                <label class="form-label fw-bold text-muted small">성별</label>
+                <select name="gender" class="form-select form-select-lg bg-light" required>
+                    <option value="M" selected>남성</option>
+                    <option value="F">여성</option>
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-brand w-100 mb-3">가입 완료 및 시작하기</button>
+        <div class="text-center">
+            <a href="{% url 'dashboard' %}" class="text-muted text-decoration-none small">돌아가기</a>
+        </div>
+    </form>
+</div>
+
+</body>
+</html>
