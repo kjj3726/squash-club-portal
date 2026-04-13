@@ -23,7 +23,7 @@
         .user-card:hover { transform: scale(1.02); box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-color: #cbd5e1; }
         .user-card.selected { background-color: #eff6ff !important; border-color: #3b82f6; }
 
-        /* 🌟 여기서부터 새로 추가된 랭킹 탭 디자인입니다 🌟 */
+        /* 🌟 랭킹 탭 디자인 */
         .ranking-tabs .nav-link { color: #94a3b8; transition: 0.2s; }
         .ranking-tabs .nav-link:hover { color: #475569; background-color: transparent; }
         .ranking-tabs .nav-link.active { background-color: #ffffff !important; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
@@ -39,10 +39,11 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="fw-bold m-0">🎾 스쿼시 동호회</h2>
         <div class="d-flex gap-2">
-            <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#rankingModal">🏆 전체 랭킹 보기</button>
             
             {% if is_manager %}
+            <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#rankingModal">🏆 전체 랭킹 보기</button>
             <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#addMemberModal">👤 인원 추가</button>
+            <button class="btn btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#memberAdminModal">⚙️ 인원 관리</button>
             <button class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#createMeetModal">📅 경기 일정 추가</button>
             {% endif %}
         </div>
@@ -71,13 +72,30 @@
         <div class="col-md-8">
             <div class="premium-card mb-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h5 class="fw-bold m-0">🔥 모임 일정</h5>
+                    
+                    <div class="d-flex align-items-center gap-2">
+                        <h5 class="fw-bold m-0">🔥 모임 일정</h5>
+                        {% if is_manager and meet and not meet.is_finalized %}
+                        <button class="btn btn-sm btn-danger fw-bold shadow-sm rounded-pill px-3 ms-2" data-bs-toggle="modal" data-bs-target="#absenteeModal" style="animation: pulse 2s infinite;">
+                            🚨 변수 발생!
+                        </button>
+                        {% endif %}
+                    </div>
+
                     {% if is_manager and meet and not meet.is_finalized %}
                     <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#finalizeModal">
                         오늘 모임 마감하기
                     </button>
                     {% endif %}
                 </div>
+
+                <style>
+                    @keyframes pulse {
+                        0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+                        70% { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
+                        100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+                    }
+                </style>
                 
                 {% if not meet %}
                 <div class="text-center py-5 bg-light rounded-3">
@@ -100,11 +118,13 @@
                             <div class="match-box d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#scoreModal{{ m.id }}">
                                 <div class="w-100 text-center">
                                     <span class="{% if m.applied_handicap > 0 and m.player1.group < m.player2.group %}text-danger fw-bold{% endif %}">
-                                        {{ m.player1.name }} {% if m.applied_handicap > 0 and m.player1.group < m.player2.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
+                                        {{ m.player1.name }}{% if m.player1.is_guest %}<small class="text-muted ms-1">(g)</small>{% endif %}
+                                        {% if m.applied_handicap > 0 and m.player1.group < m.player2.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
                                     </span>
-                                    <span class="mx-2 text-muted small">vs</span>
+                                    <span class="mx-2 text-muted small fw-bold" id="live-score-{{ m.id }}">vs</span>
                                     <span class="{% if m.applied_handicap > 0 and m.player2.group < m.player1.group %}text-danger fw-bold{% endif %}">
-                                        {{ m.player2.name }} {% if m.applied_handicap > 0 and m.player2.group < m.player1.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
+                                        {{ m.player2.name }}{% if m.player2.is_guest %}<small class="text-muted ms-1">(g)</small>{% endif %}
+                                        {% if m.applied_handicap > 0 and m.player2.group < m.player1.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
                                     </span>
                                 </div>
                             </div>
@@ -121,11 +141,13 @@
                             <div class="match-box d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#scoreModal{{ m.id }}">
                                 <div class="w-100 text-center">
                                     <span class="{% if m.applied_handicap > 0 and m.player1.group > m.player2.group %}text-danger fw-bold{% endif %}">
-                                        {{ m.player1.name }} {% if m.applied_handicap > 0 and m.player1.group > m.player2.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
+                                        {{ m.player1.name }}{% if m.player1.is_guest %}<small class="text-muted ms-1">(g)</small>{% endif %}
+                                        {% if m.applied_handicap > 0 and m.player1.group > m.player2.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
                                     </span>
-                                    <span class="mx-2 text-muted small">vs</span>
+                                    <span class="mx-2 text-muted small fw-bold" id="live-score-{{ m.id }}">vs</span>
                                     <span class="{% if m.applied_handicap > 0 and m.player2.group > m.player1.group %}text-danger fw-bold{% endif %}">
-                                        {{ m.player2.name }} {% if m.applied_handicap > 0 and m.player2.group > m.player1.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
+                                        {{ m.player2.name }}{% if m.player2.is_guest %}<small class="text-muted ms-1">(g)</small>{% endif %}
+                                        {% if m.applied_handicap > 0 and m.player2.group > m.player1.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
                                     </span>
                                 </div>
                             </div>
@@ -149,9 +171,15 @@
                                     </span>
                                 </div>
                                 <div class="d-flex justify-content-center align-items-center gap-3 fw-bold">
-                                    <div class="text-end" style="width: 40%;"><span class="{% if m.p1_score > m.p2_score %}text-primary{% endif %}">{{ m.player1.name }}</span> <span class="fs-5">{{ m.p1_score }}</span></div>
+                                    <div class="text-end" style="width: 40%">
+                                        <span class="{% if m.p1_score > m.p2_score %}text-primary{% endif %}">{{ m.player1.name }}{% if m.player1.is_guest %}<small class="text-muted ms-1 fw-normal">(g)</small>{% endif %}</span>
+                                        <span class="fs-5 ms-2">{{ m.p1_score }}</span>
+                                    </div>
                                     <div class="text-muted small">vs</div>
-                                    <div class="text-start" style="width: 40%;"><span class="fs-5">{{ m.p2_score }}</span> <span class="{% if m.p2_score > m.p1_score %}text-primary{% endif %}">{{ m.player2.name }}</span></div>
+                                    <div class="text-start" style="width: 40%">
+                                        <span class="fs-5 me-2">{{ m.p2_score }}</span>
+                                        <span class="{% if m.p2_score > m.p1_score %}text-primary{% endif %}">{{ m.player2.name }}{% if m.player2.is_guest %}<small class="text-muted ms-1 fw-normal">(g)</small>{% endif %}</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -176,13 +204,14 @@
                     </div>
                     
                     <div class="table-responsive">
-                        <table class="table table-sm table-hover align-middle" style="font-size: 0.85rem;">
+                        <table class="table table-sm table-hover align-middle text-center" style="font-size: 0.85rem;">
                             <thead class="table-light">
                                 <tr>
                                     <th>코트</th>
                                     <th>매치업</th>
                                     <th>결과(점수)</th>
                                     <th>상태</th>
+                                    <th>입력자</th>
                                     <th>관리</th>
                                 </tr>
                             </thead>
@@ -190,13 +219,27 @@
                                 {% for m in all_matches %}
                                 <tr>
                                     <td>{{ m.court }}코트</td>
-                                    <td>{{ m.player1.name }} vs {{ m.player2.name }}</td>
-                                    <td>
+                                    <td class="text-start">
+                                        {{ m.player1.name }}{% if m.player1.is_guest %}(g){% endif %} vs 
+                                        {{ m.player2.name }}{% if m.player2.is_guest %}(g){% endif %}
+                                    </td>
+                                    
+                                    <td id="admin-score-{{ m.id }}" class="fw-bold text-primary">
                                         {% if m.is_completed %}{{ m.p1_score }} : {{ m.p2_score }}{% else %}-{% endif %}
                                     </td>
-                                    <td>
+                                    
+                                    <td id="admin-status-{{ m.id }}">
                                         {% if m.is_completed %}<span class="badge bg-secondary">완료</span>{% else %}<span class="badge bg-primary">진행중</span>{% endif %}
                                     </td>
+                                    
+                                    <td id="admin-recorded-{{ m.id }}" class="text-muted fw-bold">
+                                        {% if m.is_completed and m.recorded_by %}
+                                            {{ m.recorded_by.profile.name }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    
                                     <td>
                                         <button class="btn btn-xs btn-outline-dark py-0" data-bs-toggle="modal" data-bs-target="#editMatchModal{{ m.id }}">수정</button>
                                     </td>
@@ -210,7 +253,33 @@
                 
                 {% endif %} 
             </div>
-
+            <div class="premium-card mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold m-0">📚 월별 모임 기록</h5>
+                </div>
+                
+                <div class="row g-2">
+                    {% for item in history_data %}
+                    <div class="col-md-4 col-6">
+                        <div class="p-3 border rounded-3 text-center user-card shadow-sm {% if item.is_latest %}border-primary bg-primary bg-opacity-10{% else %}bg-white{% endif %}" 
+                             data-bs-toggle="modal" data-bs-target="#historyModal{{ item.meet.id }}">
+                            <div class="fw-bold mb-1 {% if item.is_latest %}text-primary{% endif %} text-truncate">{{ item.meet.title }}</div>
+                            <div class="small text-muted mb-2">{{ item.meet.date|date:"Y.m.d" }}</div>
+                            <div>
+                                {% if item.meet.is_finalized %}
+                                <span class="badge bg-secondary">마감됨</span>
+                                {% else %}
+                                <span class="badge bg-success">진행중</span>
+                                {% endif %}
+                                <span class="badge bg-light text-dark border">{{ item.matches|length }}경기</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted text-center py-4 w-100 m-0">아직 등록된 모임이 없습니다.</p>
+                    {% endfor %}
+                </div>
+            </div>
             <div class="premium-card">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="fw-bold m-0">📢 동호회 공지사항</h5>
@@ -230,6 +299,94 @@
                     {% endfor %}
                 </div>
             </div>
+
+            {% if is_manager %}
+            <div class="premium-card mb-4 mt-4">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                    <h5 class="fw-bold m-0">📊 인원별 경기 누적 현황</h5>
+                    
+                    <div class="d-flex align-items-center" style="min-width: 250px;">
+                        <input type="text" id="memberRecordSearch" class="form-control form-control-sm border-primary" 
+                               placeholder="🔍 검색할 인원 이름을 입력하세요" onkeyup="filterMemberCards()">
+                    </div>
+                </div>
+                
+                <div class="d-flex overflow-auto pb-3 gap-3" id="memberCardContainer" style="scroll-behavior: smooth; -webkit-overflow-scrolling: touch;">
+                    {% for group in manager_history %}
+                    <div class="member-record-card flex-shrink-0" data-name="{{ group.profile.name }}" style="width: 380px;"> <div class="card border-0 shadow-sm h-100" style="border-radius: 15px; background: #f8fafc;">
+                            <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center" style="border-radius: 15px 15px 0 0;">
+                                <span class="fw-bold fs-5">{{ group.profile.name }} <small class="text-muted" style="font-size: 0.7rem;">{{ group.profile.group }}조</small></span>
+                                <span class="badge bg-primary rounded-pill px-3 py-2 shadow-sm">
+                                    {{ group.total_count }}전 {{ group.wins }}승 {{ group.losses }}패
+                                </span>
+                            </div>
+                            <div class="card-body p-2" style="max-height: 300px; overflow-y: auto;">
+                                <table class="table table-sm table-borderless m-0 small align-middle text-center">
+                                    <thead class="sticky-top bg-light" style="font-size: 0.75rem;">
+                                        <tr class="text-muted border-bottom">
+                                            <th>월</th>
+                                            <th class="text-end">선수A</th>
+                                            <th>스코어</th>
+                                            <th class="text-start">선수B</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for m in group.matches %}
+                                        <tr class="border-bottom border-white">
+                                            <td class="text-muted">{{ m.meet.date|date:"m월" }}</td>
+                                            
+                                            <td class="fw-bold text-end pe-2">
+                                                {{ group.profile.name }}({{ group.profile.group }})
+                                            </td>
+                                            
+                                            <td>
+                                                {% with p1_score=m.p1_score|default_if_none:0 p2_score=m.p2_score|default_if_none:0 %}
+                                                    {% if group.profile == m.player1 %}
+                                                        <span class="{% if p1_score > p2_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p1_score }}</span> 
+                                                        vs 
+                                                        <span class="{% if p2_score > p1_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p2_score }}</span>
+                                                    {% else %}
+                                                        <span class="{% if p2_score > p1_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p2_score }}</span> 
+                                                        vs 
+                                                        <span class="{% if p1_score > p2_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p1_score }}</span>
+                                                    {% endif %}
+                                                {% endwith %}
+                                            </td>
+                                            
+                                            <td class="text-start ps-2 text-muted">
+                                                {% if group.profile == m.player1 %}
+                                                    {{ m.player2.name }}({{ m.player2.group }})
+                                                {% else %}
+                                                    {{ m.player1.name }}({{ m.player1.group }})
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <script>
+                function filterMemberCards() {
+                    const input = document.getElementById('memberRecordSearch').value.toLowerCase();
+                    const cards = document.getElementsByClassName('member-record-card');
+                    
+                    for (let card of cards) {
+                        const name = card.getAttribute('data-name').toLowerCase();
+                        if (name.includes(input)) {
+                            card.style.display = "";
+                        } else {
+                            card.style.display = "none";
+                        }
+                    }
+                }
+            </script>
+            {% endif %}
         </div>
 
         <div class="col-md-4">
@@ -251,6 +408,40 @@
                     </div>
                 </div>
             </div>
+            
+            {% if not is_manager and user_history is not None %}
+            <div class="premium-card mb-4 border border-info border-opacity-50 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="fw-bold m-0 text-info">📈 나의 경기 누적 상태</h6>
+                    <span class="badge bg-info text-dark">{{ user_history|length }}전</span>
+                </div>
+                
+                <div style="max-height: 350px; overflow-y: auto;" class="pe-1">
+                    <ul class="list-group list-group-flush small">
+                        {% for m in user_history %}
+                        <li class="list-group-item px-1 py-2 border-bottom border-light">
+                            <div class="d-flex justify-content-between align-items-center text-muted mb-1" style="font-size: 0.75rem;">
+                                <span>{{ m.meet.date|date:"Y.m.d" }}</span>
+                                <span class="fw-bold">
+                                    {% if m.player1 == user.profile and m.p1_score > m.p2_score %}승리 🎉
+                                    {% elif m.player2 == user.profile and m.p2_score > m.p1_score %}승리 🎉
+                                    {% elif m.p1_score == m.p2_score %}무승부 🤝
+                                    {% else %}패배 💦{% endif %}
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center fw-bold">
+                                <span class="{% if m.p1_score > m.p2_score %}text-primary{% endif %} text-truncate" style="width: 35%;">{{ m.player1.name }}</span>
+                                <span class="px-2 py-1 bg-light rounded border text-center" style="width: 30%;">{{ m.p1_score }} : {{ m.p2_score }}</span>
+                                <span class="{% if m.p2_score > m.p1_score %}text-primary{% endif %} text-truncate text-end" style="width: 35%;">{{ m.player2.name }}</span>
+                            </div>
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-center text-muted py-4 border-0">아직 진행한 경기가 없습니다.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
 
             <div class="sticky-sidebar">
                 <div class="premium-card border border-warning border-opacity-50 p-3">
@@ -258,13 +449,16 @@
                     
                     <div class="row text-center g-0">
                         <div class="col-4 border-end border-secondary border-opacity-25 px-1">
-                            <h6 class="fw-bold text-danger mb-3 small">🅰️ A조</h6>
+                            <h6 class="fw-bold text-danger mb-3 small"><span class="badge bg-danger me-1">A</span> A조</h6>
                             {% for stat in top_a %}
                             <div class="mb-3">
                                 <div class="small fw-bold text-truncate" style="font-size: 0.85rem;">
-                                    {{ forloop.counter }}위 {{ stat.profile.name }}
+                                    {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% elif forloop.counter == 3 %}🥉{% endif %} {{ stat.profile.name }}
                                 </div>
-                                <span class="badge bg-danger mt-1" style="font-size: 0.7rem;">{{ stat.win_rate }}%</span>
+                                <div class="mt-1 d-flex flex-column align-items-center gap-1">
+                                    <span class="badge bg-danger" style="font-size: 0.7rem;">{{ stat.win_rate }}%</span>
+                                    <span class="text-muted fw-bold" style="font-size: 0.65rem;">{{ stat.wins }}승 {{ stat.losses }}패</span>
+                                </div>
                             </div>
                             {% empty %}
                             <div class="small text-muted py-3" style="font-size: 0.8rem;">기록 없음</div>
@@ -272,13 +466,16 @@
                         </div>
 
                         <div class="col-4 border-end border-secondary border-opacity-25 px-1">
-                            <h6 class="fw-bold text-primary mb-3 small">🅱️ B조</h6>
+                            <h6 class="fw-bold text-primary mb-3 small"><span class="badge bg-primary me-1">B</span> B조</h6>
                             {% for stat in top_b %}
                             <div class="mb-3">
                                 <div class="small fw-bold text-truncate" style="font-size: 0.85rem;">
-                                    {{ forloop.counter }}위 {{ stat.profile.name }}
+                                    {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% elif forloop.counter == 3 %}🥉{% endif %} {{ stat.profile.name }}
                                 </div>
-                                <span class="badge bg-primary mt-1" style="font-size: 0.7rem;">{{ stat.win_rate }}%</span>
+                                <div class="mt-1 d-flex flex-column align-items-center gap-1">
+                                    <span class="badge bg-primary" style="font-size: 0.7rem;">{{ stat.win_rate }}%</span>
+                                    <span class="text-muted fw-bold" style="font-size: 0.65rem;">{{ stat.wins }}승 {{ stat.losses }}패</span>
+                                </div>
                             </div>
                             {% empty %}
                             <div class="small text-muted py-3" style="font-size: 0.8rem;">기록 없음</div>
@@ -286,13 +483,16 @@
                         </div>
 
                         <div class="col-4 px-1">
-                            <h6 class="fw-bold text-success mb-3 small">🅲️ C조</h6>
+                            <h6 class="fw-bold text-success mb-3 small"><span class="badge bg-success me-1">C</span> C조</h6>
                             {% for stat in top_c %}
                             <div class="mb-3">
                                 <div class="small fw-bold text-truncate" style="font-size: 0.85rem;">
-                                    {{ forloop.counter }}위 {{ stat.profile.name }}
+                                    {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% elif forloop.counter == 3 %}🥉{% endif %} {{ stat.profile.name }}
                                 </div>
-                                <span class="badge bg-success mt-1" style="font-size: 0.7rem;">{{ stat.win_rate }}%</span>
+                                <div class="mt-1 d-flex flex-column align-items-center gap-1">
+                                    <span class="badge bg-success" style="font-size: 0.7rem;">{{ stat.win_rate }}%</span>
+                                    <span class="text-muted fw-bold" style="font-size: 0.65rem;">{{ stat.wins }}승 {{ stat.losses }}패</span>
+                                </div>
                             </div>
                             {% empty %}
                             <div class="small text-muted py-3" style="font-size: 0.8rem;">기록 없음</div>
@@ -330,12 +530,16 @@
                     </li>
                 </ul>
 
-                <div class="tab-content" style="min-height: 400px;">
-                    
-                    <div class="tab-pane fade show active" id="rankAllTab">
-                        <div class="table-responsive border rounded-3">
-                            <table class="table table-hover align-middle m-0 text-center">
-                                <thead class="table-light"><tr><th style="width:15%">순위</th><th style="width:20%">조</th><th style="width:35%">이름</th><th style="width:30%">승률 (승/패)</th></tr></thead>
+                <div class="mb-3 px-1">
+                    <input type="text" id="rankingSearchInput" class="form-control form-control-sm border-secondary border-opacity-50" placeholder="🔍 이름을 입력하여 랭킹 검색..." onkeyup="filterRanking()">
+                </div>
+
+                <div class="tab-content"> <div class="tab-pane fade show active" id="rankAllTab">
+                        <div class="table-responsive border rounded-3 shadow-sm">
+                            <table class="table table-hover align-middle m-0 text-center text-nowrap">
+                                <thead class="table-light">
+                                    <tr><th class="px-3">순위</th><th class="px-3">조</th><th class="px-4">이름</th><th class="px-3">승률 (승/패)</th></tr>
+                                </thead>
                                 <tbody>
                                     {% for stat in all_stats_sorted %}
                                     <tr {% if forloop.counter <= 3 %}class="table-warning fw-bold"{% endif %}>
@@ -346,7 +550,7 @@
                                             {% else %}{{ forloop.counter }}{% endif %}
                                         </td>
                                         <td><span class="badge bg-secondary">{{ stat.profile.group }}조</span></td>
-                                        <td>{{ stat.profile.name }}</td>
+                                        <td class="fw-bold">{{ stat.profile.name }}</td>
                                         <td><strong class="text-primary">{{ stat.win_rate }}%</strong> <span class="text-muted small">({{ stat.wins }}승 {{ stat.losses }}패)</span></td>
                                     </tr>
                                     {% empty %}<tr><td colspan="4" class="py-4 text-muted">아직 경기 기록이 없습니다.</td></tr>{% endfor %}
@@ -354,6 +558,72 @@
                             </table>
                         </div>
                     </div>
+
+                    <div class="tab-pane fade" id="rankATab">
+                        <div class="table-responsive border rounded-3 border-danger border-opacity-25 shadow-sm">
+                            <table class="table table-hover align-middle m-0 text-center text-nowrap">
+                                <thead class="table-light">
+                                    <tr><th class="px-3">순위</th><th class="px-4">이름</th><th class="px-3">승률 (승/패)</th></tr>
+                                </thead>
+                                <tbody>
+                                    {% for stat in all_a %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td class="fw-bold">{{ stat.profile.name }}</td>
+                                        <td><strong class="text-danger">{{ stat.win_rate }}%</strong> <span class="text-muted small">({{ stat.wins }}승 {{ stat.losses }}패)</span></td>
+                                    </tr>
+                                    {% empty %}<tr><td colspan="3" class="py-4 text-muted">A조 인원이 없습니다.</td></tr>{% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="rankBTab">
+                        <div class="table-responsive border rounded-3 border-primary border-opacity-25 shadow-sm">
+                            <table class="table table-hover align-middle m-0 text-center text-nowrap">
+                                <thead class="table-light">
+                                    <tr><th class="px-3">순위</th><th class="px-4">이름</th><th class="px-3">승률 (승/패)</th></tr>
+                                </thead>
+                                <tbody>
+                                    {% for stat in all_b %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td class="fw-bold">{{ stat.profile.name }}</td>
+                                        <td><strong class="text-primary">{{ stat.win_rate }}%</strong> <span class="text-muted small">({{ stat.wins }}승 {{ stat.losses }}패)</span></td>
+                                    </tr>
+                                    {% empty %}<tr><td colspan="3" class="py-4 text-muted">B조 인원이 없습니다.</td></tr>{% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane fade" id="rankCTab">
+                        <div class="table-responsive border rounded-3 border-success border-opacity-25 shadow-sm">
+                            <table class="table table-hover align-middle m-0 text-center text-nowrap">
+                                <thead class="table-light">
+                                    <tr><th class="px-3">순위</th><th class="px-4">이름</th><th class="px-3">승률 (승/패)</th></tr>
+                                </thead>
+                                <tbody>
+                                    {% for stat in all_c %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td class="fw-bold">{{ stat.profile.name }}</td>
+                                        <td><strong class="text-success">{{ stat.win_rate }}%</strong> <span class="text-muted small">({{ stat.wins }}승 {{ stat.losses }}패)</span></td>
+                                    </tr>
+                                    {% empty %}<tr><td colspan="3" class="py-4 text-muted">C조 인원이 없습니다.</td></tr>{% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+            <div class="modal-footer border-0 pb-4 px-4 d-flex justify-content-center">
+                <button type="button" class="btn btn-light rounded-pill px-5 fw-bold" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
 
                     <div class="tab-pane fade" id="rankATab">
                         <div class="table-responsive border rounded-3 border-danger border-opacity-25">
@@ -454,6 +724,26 @@
                     </div>
                 </div>
 
+                <label class="form-label fw-bold text-muted small mb-2">👤 게스트 직접 추가 (이름 작성 후 추가 버튼 클릭)</label>
+                <div class="row g-2 mb-4 p-3 bg-white border rounded-3 shadow-sm mx-0">
+                    <div class="col-4">
+                        <input type="text" id="gName" class="form-control form-control-sm bg-light" placeholder="이름 (예: 김게스트)">
+                    </div>
+                    <div class="col-3">
+                        <select id="gGroup" class="form-select form-select-sm bg-light">
+                            <option value="A">A조</option><option value="B" selected>B조</option><option value="C">C조</option>
+                        </select>
+                    </div>
+                    <div class="col-3">
+                        <select id="gGender" class="form-select form-select-sm bg-light">
+                            <option value="M">남성</option><option value="F">여성</option>
+                        </select>
+                    </div>
+                    <div class="col-2">
+                        <button type="button" class="btn btn-sm btn-dark w-100" onclick="addGuestToList()">추가</button>
+                    </div>
+                </div>
+
                 <label class="form-label fw-bold text-muted small mb-2">참가 인원 선택 (이름을 클릭하면 참가 명단으로 이동합니다 👉)</label>
                 <div class="row">
                     <div class="col-6">
@@ -463,10 +753,12 @@
                         </div>
                         <div id="pool-list" class="border rounded p-2" style="height: 250px; overflow-y: auto; background: #f8fafc;">
                             {% for profile in all_profiles %}
-                            <div class="user-card p-2 mb-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center" data-id="{{ profile.id }}" onclick="togglePlayer(this)">
-                                <span class="fw-bold profile-name">{{ profile.name }}</span>
-                                <span class="badge bg-secondary">{{ profile.group }}조</span>
-                            </div>
+                                {% if not profile.is_guest %}
+                                <div class="user-card p-2 mb-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center" data-id="{{ profile.id }}" onclick="togglePlayer(this)">
+                                    <span class="fw-bold profile-name">{{ profile.name }}</span>
+                                    <span class="badge bg-secondary">{{ profile.group }}조</span>
+                                </div>
+                                {% endif %}
                             {% empty %}
                             <p class="text-muted small text-center mt-4">등록된 회원이 없습니다.</p>
                             {% endfor %}
@@ -477,7 +769,7 @@
                             이번 참가 명단 (<span id="participant-count">0</span>명)
                         </div>
                         <div class="mb-2 d-flex align-items-center justify-content-center text-muted" style="height: 31px;">
-                            <span style="font-size: 0.8rem;">👆 이름 클릭 시 다시 왼쪽으로 이동</span>
+                            <span style="font-size: 0.8rem;">👆 이름/게스트 클릭 시 삭제 및 되돌리기</span>
                         </div>
                         <div id="participant-list" class="border rounded p-2" style="height: 250px; overflow-y: auto; background: #eff6ff; border-color: #bfdbfe !important;">
                         </div>
@@ -486,7 +778,9 @@
 
                 <div id="hidden-inputs" style="display: none;">
                     {% for profile in all_profiles %}
-                    <input type="checkbox" name="profiles" value="{{ profile.id }}" id="hidden-chk-{{ profile.id }}">
+                        {% if not profile.is_guest %}
+                        <input type="checkbox" name="profiles" value="{{ profile.id }}" id="hidden-chk-{{ profile.id }}">
+                        {% endif %}
                     {% endfor %}
                 </div>
             </div>
@@ -581,12 +875,12 @@
                     <p class="text-danger small mb-4 fw-bold">핸디캡 {{ m.applied_handicap }}점 적용됨</p>
                     <div class="d-flex justify-content-center align-items-center gap-3 mb-4">
                         <div class="text-center">
-                            <label class="d-block mb-2 fw-bold">{{ m.player1.name }}</label>
+                            <label class="d-block mb-2 fw-bold">{{ m.player1.name }}{% if m.player1.is_guest %}<small class="text-muted">(g)</small>{% endif %}</label>
                             <input type="number" name="p1_score" class="form-control form-control-lg text-center" style="width: 80px;" required>
                         </div>
                         <div class="fs-3 fw-bold text-muted">:</div>
                         <div class="text-center">
-                            <label class="d-block mb-2 fw-bold">{{ m.player2.name }}</label>
+                            <label class="d-block mb-2 fw-bold">{{ m.player2.name }}{% if m.player2.is_guest %}<small class="text-muted">(g)</small>{% endif %}</label>
                             <input type="number" name="p2_score" class="form-control form-control-lg text-center" style="width: 80px;" required>
                         </div>
                     </div>
@@ -620,13 +914,13 @@
                         <div class="col-6 mb-3">
                             <label class="form-label small fw-bold">선수 1</label>
                             <select name="player1" class="form-select bg-light border-0">
-                                {% for p in all_profiles %}<option value="{{ p.id }}" {% if m.player1.id == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+                                {% for p in all_profiles %}<option value="{{ p.id }}" {% if m.player1.id == p.id %}selected{% endif %}>{{ p.name }}{% if p.is_guest %}(g){% endif %}</option>{% endfor %}
                             </select>
                         </div>
                         <div class="col-6 mb-3">
                             <label class="form-label small fw-bold">선수 2</label>
                             <select name="player2" class="form-select bg-light border-0">
-                                {% for p in all_profiles %}<option value="{{ p.id }}" {% if m.player2.id == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+                                {% for p in all_profiles %}<option value="{{ p.id }}" {% if m.player2.id == p.id %}selected{% endif %}>{{ p.name }}{% if p.is_guest %}(g){% endif %}</option>{% endfor %}
                             </select>
                         </div>
                     </div>
@@ -681,9 +975,9 @@
                     <h5 class="fw-bold mb-3">경기 결과</h5>
                     
                     <div class="d-flex justify-content-center align-items-center gap-3 mb-2 fs-5 fw-bold">
-                        <div>{{ m.player1.name }}<br><span class="text-primary fs-3">{{ m.p1_score }}</span></div>
+                        <div>{{ m.player1.name }}{% if m.player1.is_guest %}<small class="text-muted ms-1">(g)</small>{% endif %}<br><span class="text-primary fs-3">{{ m.p1_score }}</span></div>
                         <div class="text-muted">:</div>
-                        <div>{{ m.player2.name }}<br><span class="text-primary fs-3">{{ m.p2_score }}</span></div>
+                        <div>{{ m.player2.name }}{% if m.player2.is_guest %}<small class="text-muted ms-1">(g)</small>{% endif %}<br><span class="text-primary fs-3">{{ m.p2_score }}</span></div>
                     </div>
                     
                     {% if m.recorded_by %}
@@ -698,6 +992,188 @@
         </div>
     </div>
     {% endfor %}
+{% endif %}
+
+{% if is_manager %}
+<div class="modal fade" id="memberAdminModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <h4 class="modal-title fw-bold">⚙️ 동호회 인원 관리</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4 py-4">
+                
+                <div class="p-3 bg-light rounded-4 border shadow-sm mb-4">
+                    <h6 class="fw-bold mb-3 text-center">🎖️ 누적 참여 횟수 명예의 전당 (TOP 5)</h6>
+                    <div class="d-flex gap-3 justify-content-center overflow-auto pb-2">
+                        {% for item in attendance_rank %}
+                        <div class="text-center p-2 bg-white rounded shadow-sm border" style="min-width: 100px;">
+                            <div class="mb-1">
+                                {% if forloop.counter == 1 %}<span class="fs-3">🥇</span>
+                                {% elif forloop.counter == 2 %}<span class="fs-4">🥈</span>
+                                {% elif forloop.counter == 3 %}<span class="fs-4">🥉</span>
+                                {% else %}<span class="fs-5">🏅</span>{% endif %}
+                            </div>
+                            <div class="fw-bold text-dark small">{{ item.profile.name }}</div>
+                            <div class="text-primary fw-bold mt-1" style="font-size: 0.8rem;">{{ item.attendance_count }}회 참여</div>
+                        </div>
+                        {% empty %}
+                        <p class="text-muted small m-0 text-center w-100">아직 경기 기록이 없습니다.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <h6 class="fw-bold m-0 mb-1">👥 전체 인원 리스트 <span class="text-primary">({{ member_data_sorted|length }}명)</span></h6>
+                        <span class="small text-muted">※ 누적 참여 횟수 순</span>
+                    </div>
+                    <div style="width: 180px;">
+                        <input type="text" id="adminMemberSearchInput" class="form-control form-control-sm border-secondary border-opacity-50" placeholder="🔍 이름 검색" onkeyup="filterAdminMembers()">
+                    </div>
+                </div>
+                
+                <div class="table-responsive border rounded-3">
+                    <table class="table table-hover align-middle text-center m-0" style="font-size: 0.9rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 15%;">순위</th>
+                                <th style="width: 25%;">이름</th>
+                                <th style="width: 20%;">참여 횟수</th>
+                                <th style="width: 40%;">현재 조 (수정)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in member_data_sorted %}
+                            <tr>
+                                <td class="text-muted fw-bold">{{ forloop.counter }}</td>
+                                <td class="fw-bold">
+                                    {{ item.profile.name }}
+                                    {% if item.profile.is_guest %}<small class="text-danger">(g)</small>{% endif %}
+                                </td>
+                                <td><span class="badge bg-light text-dark border">{{ item.attendance_count }}회</span></td>
+                                <td>
+                                    <form action="{% url 'update_member_rank' item.profile.id %}" method="POST" class="d-flex justify-content-center gap-2">
+                                        {% csrf_token %}
+                                        <select name="group" class="form-select form-select-sm text-center fw-bold" style="width: 80px;">
+                                            <option value="A" {% if item.profile.group == 'A' %}selected{% endif %}>A 조</option>
+                                            <option value="B" {% if item.profile.group == 'B' %}selected{% endif %}>B 조</option>
+                                            <option value="C" {% if item.profile.group == 'C' %}selected{% endif %}>C 조</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-sm btn-dark">변경</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="py-4 text-muted">등록된 인원이 없습니다.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+            <div class="modal-footer border-0 pb-4 px-4 d-flex justify-content-center">
+                <button type="button" class="btn btn-light rounded-pill px-5 fw-bold" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% for item in history_data %}
+<div class="modal fade" id="historyModal{{ item.meet.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0 pb-0 pt-4 px-4 d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="d-flex align-items-center gap-3">
+                        <h4 class="modal-title fw-bold m-0">{{ item.meet.title }}</h4>
+                        {% if is_manager %}
+                        <a href="{% url 'export_meet_results' item.meet.id %}" class="btn btn-xs btn-success fw-bold py-1 shadow-sm" style="font-size: 0.75rem;">
+                            📊 결과 Excel 다운로드
+                        </a>
+                        {% endif %}
+                    </div>
+                    <p class="text-muted m-0 mt-1">{{ item.meet.date|date:"Y년 m월 d일" }} 진행</p>
+                </div>
+                
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4 py-4 bg-light bg-opacity-50">
+                <div class="row g-3">
+                    {% for m in item.matches %}
+                    <div class="col-md-6">
+                        <div class="p-3 bg-white border rounded-3 shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge bg-light text-dark border">{{ m.court }}코트</span>
+                                {% if m.is_completed %}
+                                    <span class="badge bg-success">완료</span>
+                                {% else %}
+                                    <span class="badge bg-warning text-dark">미완료</span>
+                                {% endif %}
+                            </div>
+                            <div class="d-flex justify-content-center align-items-center gap-3 fw-bold">
+                                <div class="text-end" style="width: 40%">
+                                    <span class="{% if m.p1_score > m.p2_score %}text-primary{% endif %}">{{ m.player1.name }}{% if m.player1.is_guest %}<small class="text-muted ms-1 fw-normal">(g)</small>{% endif %}</span>
+                                    <span class="fs-5 ms-2">{% if m.is_completed %}{{ m.p1_score }}{% else %}-{% endif %}</span>
+                                </div>
+                                <div class="text-muted small">vs</div>
+                                <div class="text-start" style="width: 40%">
+                                    <span class="fs-5 me-2">{% if m.is_completed %}{{ m.p2_score }}{% else %}-{% endif %}</span>
+                                    <span class="{% if m.p2_score > m.p1_score %}text-primary{% endif %}">{{ m.player2.name }}{% if m.player2.is_guest %}<small class="text-muted ms-1 fw-normal">(g)</small>{% endif %}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-4 w-100">
+                        <p class="text-muted m-0">이 모임에 등록된 경기가 없습니다.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="modal-footer border-0 pb-4 px-4 d-flex justify-content-center">
+                <button type="button" class="btn btn-dark rounded-pill px-5 fw-bold" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% if is_manager and meet %}
+<div class="modal fade" id="absenteeModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-danger border-2" style="border-radius: 15px;">
+            <div class="modal-header bg-danger text-white border-0" style="border-radius: 13px 13px 0 0;">
+                <h5 class="modal-title fw-bold">🚨 당일 결장자 발생 (재배치)</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{% url 'handle_absentee_and_rebalance' meet.id %}">
+                {% csrf_token %}
+                <div class="modal-body p-4 text-center">
+                    <p class="text-danger fw-bold mb-2">당일 불참하는 인원을 선택해주세요.</p>
+                    <p class="small text-muted mb-4">선택된 인원의 남은 경기는 삭제되고,<br>상대방들은 새로운 짝을 찾아 <strong class="text-dark">2/3코트에 1:1로 새롭게 재배치</strong>됩니다.</p>
+                    
+                    <select name="absentee_id" class="form-select border-danger bg-light fw-bold text-center" required>
+                        <option value="" selected disabled>-- 당일 결장자 선택 --</option>
+                        
+                        {% for p in participating_profiles %}
+                        <option value="{{ p.id }}">{{ p.name }} ({{ p.group }}조)</option>
+                        {% endfor %}
+                        
+                    </select>
+                </div>
+                <div class="modal-footer border-0 d-flex justify-content-center pb-4">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">취소</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4 fw-bold">🚨 남은 인원 스마트 재배치 실행</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -724,21 +1200,91 @@
         const poolList = document.getElementById('pool-list');
         const participantList = document.getElementById('participant-list');
         const userId = element.getAttribute('data-id');
-        const checkbox = document.getElementById('hidden-chk-' + userId);
+        
+        // 정규 회원인 경우 hidden checkbox를 토글
+        if(userId) {
+            const checkbox = document.getElementById('hidden-chk-' + userId);
+            if (element.parentElement.id === 'pool-list') {
+                participantList.appendChild(element);
+                checkbox.checked = true;
+                element.classList.add('selected');
+                element.querySelector('.badge').classList.replace('bg-secondary', 'bg-primary');
+            } else {
+                poolList.appendChild(element);
+                checkbox.checked = false;
+                element.classList.remove('selected');
+                element.querySelector('.badge').classList.replace('bg-primary', 'bg-secondary');
+            }
+        }
+        updateParticipantCount();
+    }
 
-        if (element.parentElement.id === 'pool-list') {
-            participantList.appendChild(element);
-            checkbox.checked = true;
-            element.classList.add('selected');
-            element.querySelector('.badge').classList.replace('bg-secondary', 'bg-primary');
-        } else {
-            poolList.appendChild(element);
-            checkbox.checked = false;
-            element.classList.remove('selected');
-            element.querySelector('.badge').classList.replace('bg-primary', 'bg-secondary');
+    // 🌟 신규: 게스트 추가 스크립트
+    function addGuestToList() {
+        const nameInput = document.getElementById('gName');
+        const name = nameInput.value.trim();
+        const group = document.getElementById('gGroup').value;
+        const gender = document.getElementById('gGender').value;
+
+        if (!name) {
+            alert("게스트 이름을 입력해주세요.");
+            return;
         }
 
-        document.getElementById('participant-count').innerText = participantList.children.length;
+        // 1. 화면의 참가 명단에 시각적 카드 생성
+        const participantList = document.getElementById('participant-list');
+        const card = document.createElement('div');
+        const uniqueId = 'guest_' + Date.now(); // 게스트 식별용 고유 ID
+        
+        card.className = 'user-card p-2 mb-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center selected';
+        card.style.borderColor = '#3b82f6';
+        card.innerHTML = `
+            <span class="fw-bold profile-name">${name} <small class="text-danger fw-bold">(g)</small></span>
+            <span class="badge bg-primary">${group}조</span>
+        `;
+        
+        // 게스트 카드를 클릭하면 명단에서 삭제되도록 이벤트 추가
+        card.onclick = function() {
+            this.remove();
+            // 연결된 hidden input들도 함께 삭제
+            document.querySelectorAll(`.${uniqueId}`).forEach(el => el.remove());
+            updateParticipantCount();
+        };
+        participantList.appendChild(card);
+
+        // 2. 폼 전송을 위한 Hidden Input 생성
+        const hiddenContainer = document.getElementById('hidden-inputs');
+        
+        const inputName = document.createElement('input');
+        inputName.type = 'hidden';
+        inputName.name = 'guest_names[]';
+        inputName.value = name;
+        inputName.className = uniqueId;
+        
+        const inputGroup = document.createElement('input');
+        inputGroup.type = 'hidden';
+        inputGroup.name = 'guest_groups[]';
+        inputGroup.value = group;
+        inputGroup.className = uniqueId;
+        
+        const inputGender = document.createElement('input');
+        inputGender.type = 'hidden';
+        inputGender.name = 'guest_genders[]';
+        inputGender.value = gender;
+        inputGender.className = uniqueId;
+
+        hiddenContainer.appendChild(inputName);
+        hiddenContainer.appendChild(inputGroup);
+        hiddenContainer.appendChild(inputGender);
+
+        // 3. 입력창 초기화 및 인원수 갱신
+        nameInput.value = '';
+        updateParticipantCount();
+    }
+
+    function updateParticipantCount() {
+        const count = document.getElementById('participant-list').children.length;
+        document.getElementById('participant-count').innerText = count;
     }
 
     function validateMeetForm() {
@@ -751,12 +1297,53 @@
 
         const count = document.getElementById('participant-list').children.length;
         if (count < 2) {
-            alert("경기를 생성하려면 최소 2명 이상의 참가 인원이 필요합니다!");
+            alert("경기를 생성하려면 최소 2명 이상의 참가 인원(게스트 포함)이 필요합니다!");
             return false;
         }
         
         return true; 
     }
+// 📡 실시간 점수 핀셋 갱신 (5초 주기)
+    {% if meet %}
+    setInterval(function() {
+        fetch("{% url 'get_live_scores' meet.id %}")
+            .then(response => response.json())
+            .then(data => {
+                data.matches.forEach(match => {
+                    // 1. 일반 회원용 점수판 (vs 글자를 점수로 변경)
+                    let liveScore = document.getElementById('live-score-' + match.id);
+                    if (liveScore) {
+                        if (match.is_completed) {
+                            // 경기가 끝나면 빨간색 뱃지로 종료 표시
+                            liveScore.innerHTML = `<span class="badge bg-danger fs-6">${match.p1_score} : ${match.p2_score} (종료)</span>`;
+                            liveScore.classList.remove('text-muted');
+                        } else if (match.p1_score !== '-' || match.p2_score !== '-') {
+                            // 경기 중 점수가 입력되면 중간 점수 표시
+                            liveScore.innerText = `${match.p1_score} : ${match.p2_score}`;
+                            liveScore.classList.replace('text-muted', 'text-primary');
+                        }
+                    }
+
+                    // 2. 사장님 관리 테이블 점수 및 상태 갱신
+                    let adminScore = document.getElementById('admin-score-' + match.id);
+                    let adminStatus = document.getElementById('admin-status-' + match.id);
+                    let adminRecorded = document.getElementById('admin-recorded-' + match.id);
+                    
+                    if (adminScore && adminStatus) {
+                        if (match.is_completed) {
+                            adminScore.innerText = `${match.p1_score} : ${match.p2_score}`;
+                            adminStatus.innerHTML = '<span class="badge bg-secondary">완료</span>';
+                            adminRecorded.innerText = match.recorded_by;
+                        } else if (match.p1_score !== '-' || match.p2_score !== '-') {
+                            adminScore.innerText = `${match.p1_score} : ${match.p2_score}`;
+                            adminStatus.innerHTML = '<span class="badge bg-primary">진행중</span>';
+                        }
+                    }
+                });
+            })
+            .catch(error => console.error('실시간 점수 동기화 실패:', error));
+    }, 5000); // 5000ms = 5초
+    {% endif %}
 </script>
 </body>
 </html>

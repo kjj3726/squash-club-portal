@@ -39,4 +39,17 @@ urlpatterns = [
     # (신규) 경기 일정 엑셀 다운로드 URL (가로형)
     path('export-horizontal/<int:meet_id>/', views.export_schedule_horizontal, name='export_schedule_horizontal'),
 
+    # 🌟 인원 관리용 신규 주소 2개 추가
+    path('members/', views.member_management, name='member_management'),
+    path('members/update-rank/<int:profile_id>/', views.update_member_rank, name='update_member_rank'),
+    
+    # (신규) 경기 결과 엑셀 다운로드 URL
+    path('export-results/<int:meet_id>/', views.export_meet_results, name='export_meet_results'),
+
+    # (신규) 경기 결과 수정 및 재조정 URL
+    path('meet/<int:meet_id>/rebalance/', views.handle_absentee_and_rebalance, name='handle_absentee_and_rebalance'),
+
+    # (신규) 실시간 점수판 API URL
+    path('meet/<int:meet_id>/live-scores/', views.get_live_scores, name='get_live_scores'),
+
 ]

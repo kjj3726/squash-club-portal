@@ -6,15 +6,19 @@ class Profile(models.Model):
     GROUP_CHOICES = [('A', 'A조(10년)'), ('B', 'B조(5년)'), ('C', 'C조(3년미만)')]
     GENDER_CHOICES = [('M', '남성'), ('F', '여성')]
     
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    # 🌟 게스트는 User가 없으므로 null=True, blank=True 추가
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+    is_guest = models.BooleanField(default=False, verbose_name="게스트 여부")
+    
     name = models.CharField(max_length=20)
     group = models.CharField(max_length=1, choices=GROUP_CHOICES)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    
     is_owner = models.BooleanField(default=False, verbose_name="사장님 권한")
 
     def __str__(self):
-        return f"{self.name} ({self.group})"
+        # 🌟 이름 옆에 게스트 표시 추가
+        status = "[게스트]" if self.is_guest else ""
+        return f"{self.name}{status} ({self.group})"
 
 # 2. 월례회 모임 날짜 및 마감 상태
 class MonthlyMeet(models.Model):
