@@ -24,6 +24,10 @@ urlpatterns = [
     path('download-template/', views.download_member_template, name='download_template'),
     path('upload-bulk/', views.upload_members_bulk, name='upload_bulk'),
 
+    # (신규) 과거 경기 기록 엑셀 CVS 템플릿 다운로드 및 일괄 업로드 URL
+    path('download-match-template/', views.download_match_template, name='download_match_template'),
+    path('upload-matches-bulk/', views.upload_matches_bulk, name='upload_matches_bulk'),
+
     # (신규) 사장님만 수정이 가능한 경기 결과 수정 URL
     path('update-match/<int:match_id>/', views.update_match_detail, name='update_match'),
 
@@ -43,6 +47,9 @@ urlpatterns = [
     path('members/', views.member_management, name='member_management'),
     path('members/update-rank/<int:profile_id>/', views.update_member_rank, name='update_member_rank'),
     
+    # (신규) 게스트 인원을 정규 인원으로 승격 URL
+    path('members/promote-guest/<int:profile_id>/', views.promote_guest, name='promote_guest'),
+    
     # (신규) 경기 결과 엑셀 다운로드 URL
     path('export-results/<int:meet_id>/', views.export_meet_results, name='export_meet_results'),
 
@@ -52,4 +59,9 @@ urlpatterns = [
     # (신규) 실시간 점수판 API URL
     path('meet/<int:meet_id>/live-scores/', views.get_live_scores, name='get_live_scores'),
 
+    # (신규) 경기 취소 URL
+    path('meet/<int:meet_id>/cancel/', views.cancel_meeting, name='cancel_meeting'),
+
+    # (신규) 핸디캡 수동 수정 URL
+    path('meet/<int:meet_id>/handicaps/update/', views.update_handicaps, name='update_handicaps'),
 ]

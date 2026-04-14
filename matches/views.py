@@ -29,42 +29,35 @@ def is_manager(user):
 
 # 1. 핸디캡 계산 엔진 (규칙 업데이트 및 반환 로직 완료)
 def calculate_handicap_logic(p1, p2):
-    tier_weight = {'A': 3, 'B': 2, 'C': 1}
-    
-    # 계산의 편의를 위해 p1을 실력이 높은(티어가 높은) 사람으로 고정
-    if tier_weight[p1.group] < tier_weight[p2.group]:
-        strong_p, weak_p = p2, p1
-    elif tier_weight[p1.group] > tier_weight[p2.group]:
+    # 1. 조별 기본 실력 세팅 (A조=6, B조=3, C조=0)
+    tier_power = {'A': 6, 'B': 3, 'C': 0}
+    p1_power = tier_power.get(p1.group, 0)
+    p2_power = tier_power.get(p2.group, 0)
+
+    # 2. 성별 실력 세팅 (남성이 2점 더 강함 -> 결과적으로 여성이 2점 이득을 봄)
+    if p1.gender == 'M':
+        p1_power += 2
+    if p2.gender == 'M':
+        p2_power += 2
+
+    # 3. 강자/약자 판별 및 순수 핸디캡 점수 도출
+    if p1_power > p2_power:
         strong_p, weak_p = p1, p2
+        final_handicap = p1_power - p2_power
+    elif p2_power > p1_power:
+        strong_p, weak_p = p2, p1
+        final_handicap = p2_power - p1_power
     else:
-        # 티어가 같으면 성별로 고수/하수 임시 지정 (남성=고수, 여성=하수)
-        if p1.gender == 'M' and p2.gender == 'F':
-            strong_p, weak_p = p1, p2
-        else:
-            strong_p, weak_p = p2, p1
+        return 0 # 전력이 완벽하게 동일함 (핸디캡 0)
 
-    # 1. 기본 조별 핸디캡 (1단계=3점, 2단계=6점)
-    diff = tier_weight[strong_p.group] - tier_weight[weak_p.group]
-    base_handicap = diff * 3
-
-    # 2. 성별 핸디캡 (여성에게 2점 부여)
-    gender_bonus = 0
-    if strong_p.gender == 'M' and weak_p.gender == 'F':
-        gender_bonus = 2
-    elif strong_p.gender == 'F' and weak_p.gender == 'M':
-        gender_bonus = -2
-
-    # 기본 + 성별 합산
-    final_handicap = base_handicap + gender_bonus
-
-    # 3. 🌟 핸디캡 반환 로직 (상대 전적 조회) - models.F가 아닌 F로 완벽 수정됨
+    # 4. 전적 차감 (진짜 약자가 강자를 이긴 횟수만큼 차감)
     win_count = Match.objects.filter(
         (Q(player1=weak_p, player2=strong_p, p1_score__gt=F('p2_score')) |
          Q(player1=strong_p, player2=weak_p, p2_score__gt=F('p1_score'))),
         is_completed=True
     ).count()
 
-    # 승리 1회당 핸디캡 1점 차감 (최소 0점)
+    # 5. 최종 핸디캡 확정 (승리 횟수만큼 차감하되 최소 0점 보장)
     final_handicap = max(0, final_handicap - win_count)
     
     return final_handicap
@@ -98,12 +91,17 @@ def get_top_players(group_name):
 # 3. 메인 포털 대시보드 뷰
 @login_required(login_url='login')
 def dashboard(request):
-    # 🌟 [수정됨] 마감되지 않은(is_finalized=False) 가장 최신 모임만 가져옵니다.
-    # 마감이 완료되면 이 변수는 None이 되어 대시보드 상단에서 사라집니다.
-    meet = MonthlyMeet.objects.filter(is_finalized=False).order_by('-date').first()
+    # 🌟 [수정됨] 당일 자정(23:59)까지는 마감 여부와 상관없이 오늘 모임을 메인에 노출합니다.
+    meet = MonthlyMeet.objects.filter(date=date.today()).first()
+    
+    # 만약 오늘 진행된 모임이 없다면, 기존처럼 마감되지 않은 가장 최근 예정 모임을 가져옵니다.
+    if not meet:
+        meet = MonthlyMeet.objects.filter(is_finalized=False).order_by('-date').first()
     
     # 용도에 맞춰 회원 명단을 분리 (사장님 완벽 제외)
     all_profiles = Profile.objects.filter(is_owner=False).order_by('name')
+    regular_profiles = Profile.objects.filter(is_owner=False, is_guest=False).order_by('name')
+    guest_profiles = Profile.objects.filter(is_owner=False, is_guest=True).order_by('name')
     ranking_profiles = Profile.objects.filter(is_owner=False, is_guest=False)
     
     notices = Notice.objects.all().order_by('-is_important', '-created_at')[:5]
@@ -144,19 +142,35 @@ def dashboard(request):
 
     login_failed_username = request.session.pop('login_failed_username', '')
 
-    member_data = []
-    for p in ranking_profiles:
+    member_data_all = []
+    member_data_regular = []
+    member_data_guest = []
+    
+    for p in all_profiles:
         participation_count = Match.objects.filter(
             Q(player1=p) | Q(player2=p), 
             meet__is_finalized=True
         ).values('meet').distinct().count()
-        member_data.append({'profile': p, 'attendance_count': participation_count})
-    
-    member_data_sorted = sorted(member_data, key=lambda x: x['attendance_count'], reverse=True)
+        
+        data_node = {'profile': p, 'attendance_count': participation_count}
+        member_data_all.append(data_node)
+        if p.is_guest:
+            member_data_guest.append(data_node)
+        else:
+            member_data_regular.append(data_node)
+            
+    member_data_all.sort(key=lambda x: x['attendance_count'], reverse=True)
+    member_data_regular.sort(key=lambda x: x['attendance_count'], reverse=True)
+    member_data_guest.sort(key=lambda x: x['attendance_count'], reverse=True)
 
     # 🌟 월별 모임 히스토리 데이터 구성
-    # (모든 모임을 가져오므로, 마감된 모임도 여기에 다 나타납니다)
-    all_meets = MonthlyMeet.objects.all().order_by('-date')
+    if is_manager(request.user):
+        # 관리자/사장님은 모든 모임 기록을 확인 가능
+        all_meets = MonthlyMeet.objects.all().order_by('-date')
+    else:
+        # 일반 유저는 오늘(당일) 진행된 모임만 확인 가능
+        all_meets = MonthlyMeet.objects.filter(date=date.today()).order_by('-date')
+        
     history_data = []
     for m in all_meets:
         m_matches = Match.objects.filter(meet=m).order_by('court', 'id')
@@ -168,8 +182,9 @@ def dashboard(request):
 
     # 🌟 [신규 추가] 경기 누적 상태 데이터 (권한별 분리)
     if is_manager(request.user):
-        manager_history = []
-        for p in ranking_profiles:
+        manager_history_regular = []
+        manager_history_guest = []
+        for p in all_profiles:
             p_matches = Match.objects.filter(
                 Q(player1=p) | Q(player2=p), 
                 is_completed=True
@@ -187,20 +202,27 @@ def dashboard(request):
                         wins += 1
                 losses = total - wins
 
-                manager_history.append({
+                data_node = {
                     'profile': p,
                     'matches': p_matches,
                     'total_count': total,
                     'wins': wins,        # 🌟 계산된 승리 전달
                     'losses': losses     # 🌟 계산된 패배 전달
-                })
+                }
+                
+                if p.is_guest:
+                    manager_history_guest.append(data_node)
+                else:
+                    manager_history_regular.append(data_node)
         
-        manager_history.sort(key=lambda x: x['total_count'], reverse=True)
+        manager_history_regular.sort(key=lambda x: x['total_count'], reverse=True)
+        manager_history_guest.sort(key=lambda x: x['total_count'], reverse=True)
         user_history = None
         
     else:
         # 일반 유저: 자신이 속한 완료된 경기만 가져오기 (기존과 동일)
-        manager_history = None
+        manager_history_regular = None
+        manager_history_guest = None
         user_history = None
         if hasattr(request.user, 'profile'):
             user_p = request.user.profile
@@ -212,6 +234,8 @@ def dashboard(request):
     context = {
         'meet': meet,
         'all_profiles': all_profiles,
+        'regular_profiles': regular_profiles,
+        'guest_profiles': guest_profiles,
         'all_stats_sorted': all_stats_sorted, 
         'all_a': all_a, 
         'all_b': all_b, 
@@ -223,19 +247,51 @@ def dashboard(request):
         'user_stat': user_stat,
         'is_manager': is_manager(request.user),
         'login_failed_username': login_failed_username,
-        'member_data_sorted': member_data_sorted,
-        'attendance_rank': member_data_sorted[:5], 
+        'member_data_all': member_data_all,
+        'member_data_regular': member_data_regular,
+        'member_data_guest': member_data_guest,
+        'attendance_rank': member_data_regular[:5], 
         'history_data': history_data, 
         # 🌟 누적 경기 데이터 전달
-        'manager_history': manager_history,
+        'manager_history_regular': manager_history_regular,
+        'manager_history_guest': manager_history_guest,
         'user_history': user_history,
     }
 
     if meet:
-        context['matches_2'] = Match.objects.filter(meet=meet, court=2, is_completed=False)
-        context['matches_3'] = Match.objects.filter(meet=meet, court=3, is_completed=False)
-        context['completed'] = Match.objects.filter(meet=meet, is_completed=True)
+        # 🌟 1. 매치 목록을 한 번에 가져옵니다.
         all_matches = Match.objects.filter(meet=meet).order_by('court', 'id')
+        
+        matches_2 = []
+        matches_3 = []
+        completed = []
+        
+        # 🌟 2. HTML이 헷갈리지 않도록 '진짜 약자(수혜자)'를 계산해서 붙여주고 리스트를 분배합니다.
+        for m in all_matches:
+            tier_power = {'A': 6, 'B': 3, 'C': 0}
+            p1_power = tier_power.get(m.player1.group, 0) + (2 if m.player1.gender == 'M' else 0)
+            p2_power = tier_power.get(m.player2.group, 0) + (2 if m.player2.gender == 'M' else 0)
+            
+            # 전력이 낮은 쪽(약자)을 receiver(수혜자)로 지정
+            if p1_power > p2_power:
+                m.receiver = m.player2
+            elif p2_power > p1_power:
+                m.receiver = m.player1
+            else:
+                m.receiver = None
+
+            # 상태 및 코트별로 리스트 분배
+            if m.is_completed:
+                completed.append(m)
+            else:
+                if m.court == 2:
+                    matches_2.append(m)
+                elif m.court == 3:
+                    matches_3.append(m)
+
+        context['matches_2'] = matches_2
+        context['matches_3'] = matches_3
+        context['completed'] = completed
         context['all_matches'] = all_matches
         
         # 🌟 신규: 오늘 대진표에 있는 player1, player2의 ID를 모두 모아서 중복을 제거한 뒤, 그 사람들만 전달
@@ -290,21 +346,109 @@ def create_meet_and_matches(request):
                 messages.error(request, "경기를 생성하려면 최소 2명 이상의 참가 인원(게스트 포함)이 필요합니다.")
                 return redirect('dashboard')
 
-            # 3. 인원 셔플 및 대진표 생성
-            random.shuffle(players)
-
-            for i in range(0, len(players) - 1, 2):
-                p1, p2 = players[i], players[i+1]
-                handicap = calculate_handicap_logic(p1, p2)
+            # 🌟 화면에서 입력받은 최소/최대 경기 수 적용
+            try:
+                MIN_MATCHES = int(request.POST.get('min_matches', 3))
+                MAX_MATCHES = int(request.POST.get('max_matches', 4))
+            except ValueError:
+                MIN_MATCHES = 3
+                MAX_MATCHES = 4
                 
-                Match.objects.create(
-                    meet=meet,
-                    player1=p1,
-                    player2=p2,
-                    applied_handicap=handicap,
-                    court=random.choice(available_courts) 
-                )
-            messages.success(request, f"'{title}' 모임과 대진표가 성공적으로 생성되었습니다!")
+            if MIN_MATCHES > MAX_MATCHES:
+                meet.delete() # 생성했던 모임 롤백
+                messages.error(request, "최소 보장 경기 수가 최대 허용 경기 수보다 클 수 없습니다.")
+                return redirect('dashboard')
+
+            # 🌟 3. 다수 경기 스케줄링 (Round-Robin 기반) 및 제약 조건 적용 알고리즘
+            MAX_ROUNDS = 100  # 무한 루프 방지용 (안전 장치 넉넉히 상향)
+
+            match_counts = {p: 0 for p in players}      # 인원별 현재 매칭된 경기 수
+            rest_counts = {p: 0 for p in players}       # 인원별 총 휴식(결장) 횟수
+            consecutive_rest = {p: 0 for p in players}  # 연속으로 쉬고 있는 타임 수 (2연속 방지용)
+            played_pairs = set()                        # 중복 매칭 방지용 Set (frozenset 이용)
+            last_played_buffer = set()                  # 직전 타임(라운드)에 코트에 들어간 사람 기억
+            
+            scheduled_matches = []
+            court_toggle = 2 # 2코트부터 번갈아가며 배정 시작
+
+            for round_num in range(MAX_ROUNDS):
+                # 🌟 종료 조건: 모든 인원이 허용된 최대 경기 수(MAX_MATCHES)에 도달했으면 즉시 스케줄링 종료
+                if all(count >= MAX_MATCHES for count in match_counts.values()):
+                    break
+                
+                # 이번 라운드(타임)에 코트에 배정할 후보들 (동점자 발생 시 편향 방지를 위해 먼저 섞음)
+                available_players = list(players)
+                random.shuffle(available_players)
+                
+                # 🌟 [알고리즘의 핵심] 배정 우선순위 정렬 (Sorting)
+                # 리스트의 앞쪽에 있을수록 이번 타임에 코트에 들어갈 확률이 높아집니다.
+                available_players.sort(key=lambda p: (
+                    -consecutive_rest[p],                # 1순위: 연속 결장 횟수가 높은 사람 무조건 최우선 배치 (2연속 결장 강력 방어)
+                    match_counts[p],                     # 2순위: 현재까지 경기 수가 '가장 적은' 사람 우선
+                    1 if p in last_played_buffer else 0, # 3순위: 방금 전 타임에 뛴 사람은 후순위로 미룸 (최소 1경기 휴식 보장)
+                    -rest_counts[p]                      # 4순위: 누적 휴식 횟수가 '많은' 사람을 우선 배치하여 불균형 해소
+                ))
+                
+                round_matches = []
+                players_used_this_round = set()
+                
+                # 한 라운드당 최대 2경기(2코트, 3코트) -> 4명 배정 시도
+                for i in range(len(available_players)):
+                    p1 = available_players[i]
+                    if p1 in players_used_this_round: continue
+                    if match_counts[p1] >= MAX_MATCHES: continue
+                    
+                    # p1과 매칭할 최적의 상대방(p2) 탐색
+                    for j in range(i + 1, len(available_players)):
+                        p2 = available_players[j]
+                        if p2 in players_used_this_round: continue
+                        if match_counts[p2] >= MAX_MATCHES: continue
+                        
+                        # 🌟 조건 1. 중복 매칭 방지 (No Rematch)
+                        pair = frozenset([p1, p2])
+                        if pair not in played_pairs:
+                            round_matches.append((p1, p2))
+                            players_used_this_round.update([p1, p2])
+                            played_pairs.add(pair)
+                            break # p1의 짝을 찾았으므로 다음 p1 탐색으로 넘어감
+                            
+                    # 2코트와 3코트가 모두 차면(2경기 4명) 이번 라운드 매칭 루프 탈출
+                    if len(round_matches) == 2:
+                        break
+                        
+                # 더 이상 매칭할 수 있는 짝이 없다면 전체 스케줄링 종료
+                if not round_matches:
+                    break
+                    
+                # 🌟 매치 객체 생성 및 코트 토글 분배
+                for p1, p2 in round_matches:
+                    handicap = calculate_handicap_logic(p1, p2)
+                    scheduled_matches.append(Match(
+                        meet=meet, player1=p1, player2=p2,
+                        applied_handicap=handicap, court=court_toggle
+                    ))
+                    # 🌟 조건 2. 코트 토글 (2 -> 3 -> 2 -> 3)
+                    court_toggle = 3 if court_toggle == 2 else 2
+                    
+                    # 경기 수 및 연속 휴식 카운트 초기화
+                    match_counts[p1] += 1
+                    match_counts[p2] += 1
+                    consecutive_rest[p1] = 0
+                    consecutive_rest[p2] = 0
+                    
+                # 🌟 조건 4. 휴식자(Bye) 카운트 업데이트
+                resting_players = set(players) - players_used_this_round
+                for rp in resting_players:
+                    rest_counts[rp] += 1
+                    consecutive_rest[rp] += 1
+                    
+                # 🌟 조건 3. 연속 출전 방지용 버퍼 업데이트
+                last_played_buffer = players_used_this_round
+
+            # DB에 일괄 저장 (Bulk Create로 퍼포먼스 향상)
+            Match.objects.bulk_create(scheduled_matches)
+            
+            messages.success(request, f"'{title}' 모임과 대진표가 성공적으로 생성되었습니다! (스마트 스케줄링 적용)")
             
     return redirect('dashboard')
 
@@ -725,8 +869,9 @@ def member_management(request):
     if not is_manager(request.user):
         return redirect('dashboard')
     
-    profiles = Profile.objects.all()
-    member_data = []
+    profiles = Profile.objects.filter(is_owner=False)
+    regular_members = []
+    guest_members = []
     
     for p in profiles:
         # 참여한 고유 모임(MonthlyMeet) 개수 계산
@@ -735,17 +880,25 @@ def member_management(request):
             meet__is_finalized=True
         ).values('meet').distinct().count()
         
-        member_data.append({
+        data = {
             'profile': p,
             'attendance_count': participation_count,
-        })
+        }
+        if p.is_guest:
+            guest_members.append(data)
+        else:
+            regular_members.append(data)
     
     # 🌟 추가된 핵심 로직: 전체 명단을 참여 횟수(attendance_count)가 많은 순으로 정렬합니다.
-    member_data_sorted = sorted(member_data, key=lambda x: x['attendance_count'], reverse=True)
+    regular_members_sorted = sorted(regular_members, key=lambda x: x['attendance_count'], reverse=True)
+    guest_members_sorted = sorted(guest_members, key=lambda x: x['attendance_count'], reverse=True)
+    all_members_sorted = sorted(regular_members + guest_members, key=lambda x: x['attendance_count'], reverse=True)
     
     return render(request, 'matches/member_management.html', {
-        'member_data': member_data_sorted,          # 전체 리스트도 정렬된 상태로 전달
-        'attendance_rank': member_data_sorted[:5],  # 상위 5명은 명예의 전당으로
+        'member_data': all_members_sorted,          # 전체 리스트
+        'regular_data': regular_members_sorted,     # 동호회 정규 인원
+        'guest_data': guest_members_sorted,         # 게스트 인원
+        'attendance_rank': regular_members_sorted[:5],  # 상위 5명은 정규 인원에서만 선발
     })
 
 # 21. 등급(조) 수정 처리 (기존과 동일)
@@ -899,12 +1052,16 @@ def handle_absentee_and_rebalance(request, meet_id):
         # 매치 확정 및 리스트에서 제거
         p1, p2 = valid_pairs.pop(best_idx)
         
+        # 🌟 핵심 추가: 재배치되어 만난 두 사람의 핸디캡을 다시 계산합니다.
+        handicap = calculate_handicap_logic(p1, p2)
+        
         # 새로운 경기 객체 생성 (저장 대기)
         scheduled_matches.append(Match(
             meet=meet, 
             court=court_toggle, 
             player1=p1, 
-            player2=p2
+            player2=p2,
+            applied_handicap=handicap  # 👈 계산된 핸디캡을 DB에 저장하도록 추가!
         ))
         
         # 휴식 보장을 위해 방금 뛴 사람 명단 업데이트 (최대 4명 기억)
@@ -918,7 +1075,7 @@ def handle_absentee_and_rebalance(request, meet_id):
     # 데이터베이스에 일괄 저장
     Match.objects.bulk_create(scheduled_matches)
     
-    messages.success(request, "🚨 결장자가 제외되고, 코트 비율과 휴식 시간을 고려하여 남은 대진이 완벽하게 재배치되었습니다!")
+    messages.success(request, "🚨 결장자가 제외되고, 핸디캡과 코트 비율을 고려하여 대진이 완벽하게 재배치되었습니다!")
     return redirect('dashboard')
 
 # 24. 📡 실시간 점수 데이터 통신 (AJAX 전용)
@@ -935,3 +1092,118 @@ def get_live_scores(request, meet_id):
             'recorded_by': m.recorded_by.profile.name if m.recorded_by else '-'
         })
     return JsonResponse({'matches': data})
+
+# 25. 📅 모임 일정 취소 (DB에서 삭제)
+@login_required
+def cancel_meeting(request, meet_id):
+    if not is_manager(request.user):
+        return redirect('dashboard')
+    
+    meet = get_object_or_404(MonthlyMeet, id=meet_id)
+    # CASCADE 설정으로 인해 연결된 Match들도 함께 삭제됩니다.
+    meet.delete()
+    
+    messages.success(request, "⚠️ 모임 일정이 취소되고 모든 대진표가 삭제되었습니다.")
+    return redirect('dashboard')
+
+# 26. ⚙️ 핸디캡 수동 일괄 수정 (사장님 전용 오버라이드)
+@login_required
+def update_handicaps(request, meet_id):
+    if not is_manager(request.user) or request.method != 'POST':
+        return redirect('dashboard')
+    
+    meet = get_object_or_404(MonthlyMeet, id=meet_id)
+    matches = Match.objects.filter(meet=meet)
+    
+    update_count = 0
+    for m in matches:
+        # 화면에서 넘어온 'handicap_경기번호' 값을 찾습니다.
+        handicap_val = request.POST.get(f'handicap_{m.id}')
+        
+        if handicap_val is not None and handicap_val.isdigit():
+            new_handicap = int(handicap_val)
+            
+            # 기존 점수와 다르다면 새 점수로 덮어씁니다.
+            if m.applied_handicap != new_handicap:
+                m.applied_handicap = new_handicap
+                m.save()
+                update_count += 1
+                
+    if update_count > 0:
+        messages.success(request, f"✅ {update_count}건의 매치 핸디캡이 수동으로 변경되었습니다!")
+        
+    return redirect('dashboard')
+
+# 27. 🚀 게스트를 동호회 정규 인원으로 승격 (사장님 전용)
+@login_required
+def promote_guest(request, profile_id):
+    if not is_manager(request.user) or request.method != 'POST':
+        return redirect('dashboard')
+    
+    profile = get_object_or_404(Profile, id=profile_id, is_guest=True)
+    profile.is_guest = False
+    profile.save()
+    
+    messages.success(request, f"🎉 {profile.name} 님이 동호회 정규 인원으로 승격되었습니다!")
+    return redirect('member_management')
+
+# 28. 과거 경기 기록 일괄 업로드 템플릿 다운로드
+@login_required
+def download_match_template(request):
+    if is_manager(request.user):
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
+        response['Content-Disposition'] = 'attachment; filename="match_upload_template.csv"'
+        
+        writer = csv.writer(response)
+        # 1행: 헤더 (안내문)
+        writer.writerow(['모임일자(YYYY-MM-DD)', '모임이름(예: 1월정기모임)', '코트(2/3)', '선수1(실명)', '선수2(실명)', '선수1점수', '선수2점수'])
+        # 2행: 예시 데이터
+        writer.writerow(['2024-01-15', '1월 정기 모임', '2', '홍길동', '김철수', '11', '8'])
+        writer.writerow(['2024-01-15', '1월 정기 모임', '3', '이영희', '박민수', '9', '11'])
+        
+        return response
+    return redirect('dashboard')
+
+# 29. 과거 경기 기록 엑셀(CSV) 일괄 업로드 처리
+@login_required
+def upload_matches_bulk(request):
+    if request.method == 'POST' and is_manager(request.user):
+        csv_file = request.FILES.get('excel_file')
+        
+        if not csv_file or not csv_file.name.endswith('.csv'):
+            messages.error(request, "CSV 파일을 업로드해주세요.")
+            return redirect('dashboard')
+
+        try:
+            decoded_file = csv_file.read().decode('utf-8-sig').splitlines()
+            reader = csv.reader(decoded_file)
+            next(reader) # 첫 번째 줄(헤더) 건너뜀
+            
+            success_count = 0
+            for row in reader:
+                if len(row) >= 7:
+                    date_str, title, court, p1_name, p2_name, p1_score, p2_score = [col.strip() for col in row[:7]]
+                    
+                    # DB에서 선수 프로필 찾기 (동명이인 처리 로직이 필요하다면 고도화 가능)
+                    p1 = Profile.objects.filter(name=p1_name).first()
+                    p2 = Profile.objects.filter(name=p2_name).first()
+                    
+                    if not p1 or not p2:
+                        continue # 등록되지 않은 이름이면 스킵
+                        
+                    # 모임(MonthlyMeet) 찾기 또는 새로 생성 (과거 기록이므로 무조건 마감 처리)
+                    meet, created = MonthlyMeet.objects.get_or_create(
+                        date=date_str,
+                        defaults={'title': title, 'is_finalized': True}
+                    )
+                    
+                    # 매치(Match) 객체 생성
+                    handicap = calculate_handicap_logic(p1, p2)
+                    Match.objects.create(meet=meet, court=int(court), player1=p1, player2=p2, p1_score=int(p1_score), p2_score=int(p2_score), applied_handicap=handicap, is_completed=True, recorded_by=request.user)
+                    success_count += 1
+                    
+            messages.success(request, f"🎉 총 {success_count}건의 과거 경기 기록이 성공적으로 일괄 추가되었습니다!")
+        except Exception as e:
+            messages.error(request, f"파일 처리 중 오류가 발생했습니다. 양식을 확인해주세요. (에러: {e})")
+            
+    return redirect('dashboard')

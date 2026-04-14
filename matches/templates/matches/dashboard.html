@@ -44,6 +44,7 @@
             <button class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#rankingModal">🏆 전체 랭킹 보기</button>
             <button class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#addMemberModal">👤 인원 추가</button>
             <button class="btn btn-outline-primary fw-bold" data-bs-toggle="modal" data-bs-target="#memberAdminModal">⚙️ 인원 관리</button>
+            <button class="btn btn-outline-success fw-bold" data-bs-toggle="modal" data-bs-target="#bulkMatchModal">📁 과거 기록 추가</button>
             <button class="btn btn-brand" data-bs-toggle="modal" data-bs-target="#createMeetModal">📅 경기 일정 추가</button>
             {% endif %}
         </div>
@@ -83,9 +84,17 @@
                     </div>
 
                     {% if is_manager and meet and not meet.is_finalized %}
-                    <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#finalizeModal">
-                        오늘 모임 마감하기
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-secondary fw-bold" data-bs-toggle="modal" data-bs-target="#editHandicapModal">
+                            ⚙️ 핸디캡 수정
+                        </button>
+                        <button class="btn btn-sm btn-light border fw-bold text-muted" data-bs-toggle="modal" data-bs-target="#cancelMeetModal">
+                            모임 취소
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger fw-bold" data-bs-toggle="modal" data-bs-target="#finalizeModal">
+                            오늘 모임 마감하기
+                        </button>
+                    </div>
                     {% endif %}
                 </div>
 
@@ -109,22 +118,25 @@
                     {{ meet.title }} ({{ meet.date }}) 
                     {% if meet.is_finalized %}<span class="badge bg-secondary ms-2">마감됨</span>{% endif %}
                 </h6>
+                
                 <div class="row mt-3 justify-content-center"> 
                     {% if matches_2 %}
                     <div class="col-md-6 mb-3">
                         <div class="p-3 bg-light rounded-3">
                             <h6 class="fw-bold text-primary mb-3">🔵 2 코트</h6>
                             {% for m in matches_2 %}
-                            <div class="match-box d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#scoreModal{{ m.id }}">
+                            <div class="match-box d-flex justify-content-between align-items-center mb-2" data-bs-toggle="modal" data-bs-target="#scoreModal{{ m.id }}">
                                 <div class="w-100 text-center">
-                                    <span class="{% if m.applied_handicap > 0 and m.player1.group < m.player2.group %}text-danger fw-bold{% endif %}">
-                                        {{ m.player1.name }}{% if m.player1.is_guest %}<small class="text-muted ms-1">(g)</small>{% endif %}
-                                        {% if m.applied_handicap > 0 and m.player1.group < m.player2.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
+                                    <span class="{% if m.applied_handicap > 0 and m.receiver == m.player1 %}text-danger fw-bold{% endif %}">
+                                        {{ m.player1.name }}{% if m.player1.is_guest %}<small class="text-muted">(g)</small>{% endif %}
+                                        {% if m.applied_handicap > 0 and m.receiver == m.player1 %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
                                     </span>
+                                    
                                     <span class="mx-2 text-muted small fw-bold" id="live-score-{{ m.id }}">vs</span>
-                                    <span class="{% if m.applied_handicap > 0 and m.player2.group < m.player1.group %}text-danger fw-bold{% endif %}">
-                                        {{ m.player2.name }}{% if m.player2.is_guest %}<small class="text-muted ms-1">(g)</small>{% endif %}
-                                        {% if m.applied_handicap > 0 and m.player2.group < m.player1.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
+                                    
+                                    <span class="{% if m.applied_handicap > 0 and m.receiver == m.player2 %}text-danger fw-bold{% endif %}">
+                                        {{ m.player2.name }}{% if m.player2.is_guest %}<small class="text-muted">(g)</small>{% endif %}
+                                        {% if m.applied_handicap > 0 and m.receiver == m.player2 %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
                                     </span>
                                 </div>
                             </div>
@@ -138,16 +150,18 @@
                         <div class="p-3 bg-light rounded-3">
                             <h6 class="fw-bold text-success mb-3">🟢 3 코트</h6>
                             {% for m in matches_3 %}
-                            <div class="match-box d-flex justify-content-between align-items-center" data-bs-toggle="modal" data-bs-target="#scoreModal{{ m.id }}">
+                            <div class="match-box d-flex justify-content-between align-items-center mb-2" data-bs-toggle="modal" data-bs-target="#scoreModal{{ m.id }}">
                                 <div class="w-100 text-center">
-                                    <span class="{% if m.applied_handicap > 0 and m.player1.group > m.player2.group %}text-danger fw-bold{% endif %}">
-                                        {{ m.player1.name }}{% if m.player1.is_guest %}<small class="text-muted ms-1">(g)</small>{% endif %}
-                                        {% if m.applied_handicap > 0 and m.player1.group > m.player2.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
+                                    <span class="{% if m.applied_handicap > 0 and m.receiver == m.player1 %}text-danger fw-bold{% endif %}">
+                                        {{ m.player1.name }}{% if m.player1.is_guest %}<small class="text-muted">(g)</small>{% endif %}
+                                        {% if m.applied_handicap > 0 and m.receiver == m.player1 %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
                                     </span>
+                                    
                                     <span class="mx-2 text-muted small fw-bold" id="live-score-{{ m.id }}">vs</span>
-                                    <span class="{% if m.applied_handicap > 0 and m.player2.group > m.player1.group %}text-danger fw-bold{% endif %}">
-                                        {{ m.player2.name }}{% if m.player2.is_guest %}<small class="text-muted ms-1">(g)</small>{% endif %}
-                                        {% if m.applied_handicap > 0 and m.player2.group > m.player1.group %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
+                                    
+                                    <span class="{% if m.applied_handicap > 0 and m.receiver == m.player2 %}text-danger fw-bold{% endif %}">
+                                        {{ m.player2.name }}{% if m.player2.is_guest %}<small class="text-muted">(g)</small>{% endif %}
+                                        {% if m.applied_handicap > 0 and m.receiver == m.player2 %}<small>(+{{ m.applied_handicap }})</small>{% endif %}
                                     </span>
                                 </div>
                             </div>
@@ -219,11 +233,20 @@
                                 {% for m in all_matches %}
                                 <tr>
                                     <td>{{ m.court }}코트</td>
-                                    <td class="text-start">
-                                        {{ m.player1.name }}{% if m.player1.is_guest %}(g){% endif %} vs 
-                                        {{ m.player2.name }}{% if m.player2.is_guest %}(g){% endif %}
-                                    </td>
                                     
+                                    <td class="text-start">
+                                        {{ m.player1.name }}{% if m.player1.is_guest %}(g){% endif %}
+                                        {% if m.applied_handicap > 0 and m.receiver == m.player1 %}
+                                            <span class="text-danger fw-bold">(+{{ m.applied_handicap }})</span>
+                                        {% endif %}
+                                        
+                                        <span class="text-muted mx-1">vs</span> 
+                                        
+                                        {{ m.player2.name }}{% if m.player2.is_guest %}(g){% endif %}
+                                        {% if m.applied_handicap > 0 and m.receiver == m.player2 %}
+                                            <span class="text-danger fw-bold">(+{{ m.applied_handicap }})</span>
+                                        {% endif %}
+                                    </td>
                                     <td id="admin-score-{{ m.id }}" class="fw-bold text-primary">
                                         {% if m.is_completed %}{{ m.p1_score }} : {{ m.p2_score }}{% else %}-{% endif %}
                                     </td>
@@ -255,7 +278,7 @@
             </div>
             <div class="premium-card mb-4">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="fw-bold m-0">📚 월별 모임 기록</h5>
+                    <h5 class="fw-bold m-0">📚 {% if is_manager %}월별 모임 기록{% else %}오늘의 모임 기록{% endif %}</h5>
                 </div>
                 
                 <div class="row g-2">
@@ -303,7 +326,17 @@
             {% if is_manager %}
             <div class="premium-card mb-4 mt-4">
                 <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-                    <h5 class="fw-bold m-0">📊 인원별 경기 누적 현황</h5>
+                    <div class="d-flex align-items-center gap-3">
+                        <h5 class="fw-bold m-0">📊 인원별 경기 누적 현황</h5>
+                        <ul class="nav nav-pills bg-light p-1 rounded-pill" style="font-size: 0.85rem;" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active rounded-pill fw-bold py-1 px-3" data-bs-toggle="pill" data-bs-target="#history-regular-tab" type="button">동호회 인원</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link rounded-pill fw-bold py-1 px-3" data-bs-toggle="pill" data-bs-target="#history-guest-tab" type="button">게스트 인원</button>
+                            </li>
+                        </ul>
+                    </div>
                     
                     <div class="d-flex align-items-center" style="min-width: 250px;">
                         <input type="text" id="memberRecordSearch" class="form-control form-control-sm border-primary" 
@@ -311,63 +344,134 @@
                     </div>
                 </div>
                 
-                <div class="d-flex overflow-auto pb-3 gap-3" id="memberCardContainer" style="scroll-behavior: smooth; -webkit-overflow-scrolling: touch;">
-                    {% for group in manager_history %}
-                    <div class="member-record-card flex-shrink-0" data-name="{{ group.profile.name }}" style="width: 380px;"> <div class="card border-0 shadow-sm h-100" style="border-radius: 15px; background: #f8fafc;">
-                            <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center" style="border-radius: 15px 15px 0 0;">
-                                <span class="fw-bold fs-5">{{ group.profile.name }} <small class="text-muted" style="font-size: 0.7rem;">{{ group.profile.group }}조</small></span>
-                                <span class="badge bg-primary rounded-pill px-3 py-2 shadow-sm">
-                                    {{ group.total_count }}전 {{ group.wins }}승 {{ group.losses }}패
-                                </span>
+                <div class="tab-content">
+                    <!-- 동호회 인원 탭 -->
+                    <div class="tab-pane fade show active" id="history-regular-tab">
+                        <div class="d-flex overflow-auto pb-3 gap-3" style="scroll-behavior: smooth; -webkit-overflow-scrolling: touch;">
+                            {% for group in manager_history_regular %}
+                            <div class="member-record-card flex-shrink-0" data-name="{{ group.profile.name }}" style="width: 380px;"> <div class="card border-0 shadow-sm h-100" style="border-radius: 15px; background: #f8fafc;">
+                                    <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center" style="border-radius: 15px 15px 0 0;">
+                                        <span class="fw-bold fs-5">{{ group.profile.name }} <small class="text-muted" style="font-size: 0.7rem;">{{ group.profile.group }}조</small></span>
+                                        <span class="badge bg-primary rounded-pill px-3 py-2 shadow-sm">
+                                            {{ group.total_count }}전 {{ group.wins }}승 {{ group.losses }}패
+                                        </span>
+                                    </div>
+                                    <div class="card-body p-2" style="max-height: 300px; overflow-y: auto;">
+                                        <table class="table table-sm table-borderless m-0 small align-middle text-center">
+                                            <thead class="sticky-top bg-light" style="font-size: 0.75rem;">
+                                                <tr class="text-muted border-bottom">
+                                                    <th>월</th>
+                                                    <th class="text-end">선수A</th>
+                                                    <th>스코어</th>
+                                                    <th class="text-start">선수B</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for m in group.matches %}
+                                                <tr class="border-bottom border-white">
+                                                    <td class="text-muted">{{ m.meet.date|date:"m월" }}</td>
+                                                    
+                                                    <td class="fw-bold text-end pe-2">
+                                                        {{ group.profile.name }}({{ group.profile.group }})
+                                                    </td>
+                                                    
+                                                    <td>
+                                                        {% with p1_score=m.p1_score|default_if_none:0 p2_score=m.p2_score|default_if_none:0 %}
+                                                            {% if group.profile == m.player1 %}
+                                                                <span class="{% if p1_score > p2_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p1_score }}</span> 
+                                                                vs 
+                                                                <span class="{% if p2_score > p1_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p2_score }}</span>
+                                                            {% else %}
+                                                                <span class="{% if p2_score > p1_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p2_score }}</span> 
+                                                                vs 
+                                                                <span class="{% if p1_score > p2_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p1_score }}</span>
+                                                            {% endif %}
+                                                        {% endwith %}
+                                                    </td>
+                                                    
+                                                    <td class="text-start ps-2 text-muted">
+                                                        {% if group.profile == m.player1 %}
+                                                            {{ m.player2.name }}({{ m.player2.group }})
+                                                        {% else %}
+                                                            {{ m.player1.name }}({{ m.player1.group }})
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="card-body p-2" style="max-height: 300px; overflow-y: auto;">
-                                <table class="table table-sm table-borderless m-0 small align-middle text-center">
-                                    <thead class="sticky-top bg-light" style="font-size: 0.75rem;">
-                                        <tr class="text-muted border-bottom">
-                                            <th>월</th>
-                                            <th class="text-end">선수A</th>
-                                            <th>스코어</th>
-                                            <th class="text-start">선수B</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {% for m in group.matches %}
-                                        <tr class="border-bottom border-white">
-                                            <td class="text-muted">{{ m.meet.date|date:"m월" }}</td>
-                                            
-                                            <td class="fw-bold text-end pe-2">
-                                                {{ group.profile.name }}({{ group.profile.group }})
-                                            </td>
-                                            
-                                            <td>
-                                                {% with p1_score=m.p1_score|default_if_none:0 p2_score=m.p2_score|default_if_none:0 %}
-                                                    {% if group.profile == m.player1 %}
-                                                        <span class="{% if p1_score > p2_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p1_score }}</span> 
-                                                        vs 
-                                                        <span class="{% if p2_score > p1_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p2_score }}</span>
-                                                    {% else %}
-                                                        <span class="{% if p2_score > p1_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p2_score }}</span> 
-                                                        vs 
-                                                        <span class="{% if p1_score > p2_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p1_score }}</span>
-                                                    {% endif %}
-                                                {% endwith %}
-                                            </td>
-                                            
-                                            <td class="text-start ps-2 text-muted">
-                                                {% if group.profile == m.player1 %}
-                                                    {{ m.player2.name }}({{ m.player2.group }})
-                                                {% else %}
-                                                    {{ m.player1.name }}({{ m.player1.group }})
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
-                                    </tbody>
-                                </table>
-                            </div>
+                            {% empty %}
+                            <div class="text-muted small py-4 text-center w-100">경기 기록이 있는 동호회 인원이 없습니다.</div>
+                            {% endfor %}
                         </div>
                     </div>
-                    {% endfor %}
+
+                    <!-- 게스트 인원 탭 -->
+                    <div class="tab-pane fade" id="history-guest-tab">
+                        <div class="d-flex overflow-auto pb-3 gap-3" style="scroll-behavior: smooth; -webkit-overflow-scrolling: touch;">
+                            {% for group in manager_history_guest %}
+                            <div class="member-record-card flex-shrink-0" data-name="{{ group.profile.name }}" style="width: 380px;"> <div class="card border-0 shadow-sm h-100" style="border-radius: 15px; background: #f8fafc;">
+                                    <div class="card-header bg-white border-0 pt-3 pb-0 d-flex justify-content-between align-items-center" style="border-radius: 15px 15px 0 0;">
+                                        <span class="fw-bold fs-5 text-danger">{{ group.profile.name }} <small class="text-muted" style="font-size: 0.7rem;">{{ group.profile.group }}조(g)</small></span>
+                                        <span class="badge bg-secondary rounded-pill px-3 py-2 shadow-sm">
+                                            {{ group.total_count }}전 {{ group.wins }}승 {{ group.losses }}패
+                                        </span>
+                                    </div>
+                                    <div class="card-body p-2" style="max-height: 300px; overflow-y: auto;">
+                                        <table class="table table-sm table-borderless m-0 small align-middle text-center">
+                                            <thead class="sticky-top bg-light" style="font-size: 0.75rem;">
+                                                <tr class="text-muted border-bottom">
+                                                    <th>월</th>
+                                                    <th class="text-end">선수A</th>
+                                                    <th>스코어</th>
+                                                    <th class="text-start">선수B</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for m in group.matches %}
+                                                <tr class="border-bottom border-white">
+                                                    <td class="text-muted">{{ m.meet.date|date:"m월" }}</td>
+                                                    
+                                                    <td class="fw-bold text-end pe-2">
+                                                        {{ group.profile.name }}({{ group.profile.group }})
+                                                    </td>
+                                                    
+                                                    <td>
+                                                        {% with p1_score=m.p1_score|default_if_none:0 p2_score=m.p2_score|default_if_none:0 %}
+                                                            {% if group.profile == m.player1 %}
+                                                                <span class="{% if p1_score > p2_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p1_score }}</span> 
+                                                                vs 
+                                                                <span class="{% if p2_score > p1_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p2_score }}</span>
+                                                            {% else %}
+                                                                <span class="{% if p2_score > p1_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p2_score }}</span> 
+                                                                vs 
+                                                                <span class="{% if p1_score > p2_score %}text-primary fw-bold{% else %}text-muted{% endif %}">{{ p1_score }}</span>
+                                                            {% endif %}
+                                                        {% endwith %}
+                                                    </td>
+                                                    
+                                                    <td class="text-start ps-2 text-muted">
+                                                        {% if group.profile == m.player1 %}
+                                                            {{ m.player2.name }}({{ m.player2.group }})
+                                                        {% else %}
+                                                            {{ m.player1.name }}({{ m.player1.group }})
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="text-muted small py-4 text-center w-100">경기 기록이 있는 게스트 인원이 없습니다.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -706,6 +810,17 @@
                     </div>
                 </div>
                 
+                <div class="row mb-3"> 
+                    <div class="col-md-6 mb-3 mb-md-0">
+                        <label class="form-label fw-bold text-muted small">1인 최소 보장 경기 수</label>
+                        <input type="number" name="min_matches" class="form-control form-control-lg bg-light border-0 text-center" value="3" min="1" max="10" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold text-muted small">1인 최대 허용 경기 수</label>
+                        <input type="number" name="max_matches" class="form-control form-control-lg bg-light border-0 text-center" value="4" min="1" max="10" required>
+                    </div>
+                </div>
+                
                 <div class="mb-4 p-3 bg-light rounded-3 border text-center">
                     <label class="form-label fw-bold text-muted small mb-3 d-block text-start">사용할 코트 선택</label>
                     <div class="d-flex justify-content-center gap-5">
@@ -724,7 +839,7 @@
                     </div>
                 </div>
 
-                <label class="form-label fw-bold text-muted small mb-2">👤 게스트 직접 추가 (이름 작성 후 추가 버튼 클릭)</label>
+                <label class="form-label fw-bold text-muted small mb-2">👤 신규 게스트 직접 추가 (추가 시 '게스트 인원' 탭에 등록됩니다)</label>
                 <div class="row g-2 mb-4 p-3 bg-white border rounded-3 shadow-sm mx-0">
                     <div class="col-4">
                         <input type="text" id="gName" class="form-control form-control-sm bg-light" placeholder="이름 (예: 김게스트)">
@@ -747,21 +862,42 @@
                 <label class="form-label fw-bold text-muted small mb-2">참가 인원 선택 (이름을 클릭하면 참가 명단으로 이동합니다 👉)</label>
                 <div class="row">
                     <div class="col-6">
-                        <div class="p-2 bg-light rounded text-center fw-bold small mb-2 text-muted">기존 전체 인원</div>
+                        <ul class="nav nav-pills nav-fill mb-2 bg-light p-1 rounded" id="memberTab" role="tablist" style="font-size: 0.85rem;">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active py-1 fw-bold" data-bs-toggle="pill" data-bs-target="#regular-pool" type="button">동호회 인원</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link py-1 fw-bold" data-bs-toggle="pill" data-bs-target="#guest-pool" type="button">게스트 인원</button>
+                            </li>
+                        </ul>
                         <div class="mb-2">
                             <input type="text" id="memberSearch" class="form-control form-control-sm border-secondary border-opacity-50" placeholder="🔍 이름 검색 (예: 김)" onkeyup="filterMembers()">
                         </div>
-                        <div id="pool-list" class="border rounded p-2" style="height: 250px; overflow-y: auto; background: #f8fafc;">
-                            {% for profile in all_profiles %}
-                                {% if not profile.is_guest %}
-                                <div class="user-card p-2 mb-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center" data-id="{{ profile.id }}" onclick="togglePlayer(this)">
-                                    <span class="fw-bold profile-name">{{ profile.name }}</span>
-                                    <span class="badge bg-secondary">{{ profile.group }}조</span>
+                        <div class="tab-content border rounded p-2" style="height: 250px; overflow-y: auto; background: #f8fafc;" id="pool-list-container">
+                            <div class="tab-pane fade show active" id="regular-pool">
+                                <div id="regular-list">
+                                    {% for profile in regular_profiles %}
+                                    <div class="user-card p-2 mb-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center" data-id="{{ profile.id }}" data-type="regular" onclick="togglePlayer(this)">
+                                        <span class="fw-bold profile-name">{{ profile.name }}</span>
+                                        <span class="badge bg-secondary">{{ profile.group }}조</span>
+                                    </div>
+                                    {% empty %}
+                                    <p class="text-muted small text-center mt-4">등록된 회원이 없습니다.</p>
+                                    {% endfor %}
                                 </div>
-                                {% endif %}
-                            {% empty %}
-                            <p class="text-muted small text-center mt-4">등록된 회원이 없습니다.</p>
-                            {% endfor %}
+                            </div>
+                            <div class="tab-pane fade" id="guest-pool">
+                                <div id="guest-list">
+                                    {% for profile in guest_profiles %}
+                                    <div class="user-card p-2 mb-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center" data-id="{{ profile.id }}" data-type="guest" onclick="togglePlayer(this)">
+                                        <span class="fw-bold profile-name text-danger">{{ profile.name }} <small>(g)</small></span>
+                                        <span class="badge bg-secondary">{{ profile.group }}조</span>
+                                    </div>
+                                    {% empty %}
+                                    <p id="empty-guest-msg" class="text-muted small text-center mt-4">과거 참석 게스트가 없습니다.</p>
+                                    {% endfor %}
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="col-6">
@@ -778,9 +914,7 @@
 
                 <div id="hidden-inputs" style="display: none;">
                     {% for profile in all_profiles %}
-                        {% if not profile.is_guest %}
                         <input type="checkbox" name="profiles" value="{{ profile.id }}" id="hidden-chk-{{ profile.id }}">
-                        {% endif %}
                     {% endfor %}
                 </div>
             </div>
@@ -843,6 +977,32 @@
         </div>
     </div>
 </div>
+
+{% if is_manager %}
+<div class="modal fade" id="bulkMatchModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 20px;">
+            <div class="modal-header border-0 pb-0 pt-4 px-4">
+                <h4 class="modal-title fw-bold">📁 과거 경기 기록 일괄 추가</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body px-4 py-4 text-center">
+                <p class="text-muted small mb-2">1~3월 등 과거에 진행된 모임의 경기 결과를<br>엑셀(CSV) 양식으로 한 번에 업로드하여 누적 기록에 반영합니다.</p>
+                <a href="{% url 'download_match_template' %}" class="btn btn-outline-success btn-sm fw-bold mb-4 mt-2">📥 과거 기록용 엑셀(CSV) 양식 다운로드</a>
+                <hr class="border-secondary border-opacity-25 mb-4">
+                <form action="{% url 'upload_matches_bulk' %}" method="POST" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-4 text-start">
+                        <label class="form-label fw-bold text-muted small">작성된 파일 업로드</label>
+                        <input class="form-control bg-light" type="file" name="excel_file" accept=".csv" required>
+                    </div>
+                    <button type="submit" class="btn btn-brand w-100 btn-lg">과거 기록 일괄 업로드 🚀</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% if meet and not meet.is_finalized %}
 <div class="modal fade" id="finalizeModal" tabindex="-1">
@@ -1024,54 +1184,153 @@
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex justify-content-between align-items-center mb-3">
                     <div>
-                        <h6 class="fw-bold m-0 mb-1">👥 전체 인원 리스트 <span class="text-primary">({{ member_data_sorted|length }}명)</span></h6>
-                        <span class="small text-muted">※ 누적 참여 횟수 순</span>
+                        <h6 class="fw-bold m-0 mb-1">👥 동호회 인원 관리</h6>
+                        <span class="small text-muted">※ 누적 참여 횟수 순 정렬</span>
                     </div>
                     <div style="width: 180px;">
                         <input type="text" id="adminMemberSearchInput" class="form-control form-control-sm border-secondary border-opacity-50" placeholder="🔍 이름 검색" onkeyup="filterAdminMembers()">
                     </div>
                 </div>
                 
-                <div class="table-responsive border rounded-3">
-                    <table class="table table-hover align-middle text-center m-0" style="font-size: 0.9rem;">
-                        <thead class="table-light">
-                            <tr>
-                                <th style="width: 15%;">순위</th>
-                                <th style="width: 25%;">이름</th>
-                                <th style="width: 20%;">참여 횟수</th>
-                                <th style="width: 40%;">현재 조 (수정)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in member_data_sorted %}
-                            <tr>
-                                <td class="text-muted fw-bold">{{ forloop.counter }}</td>
-                                <td class="fw-bold">
-                                    {{ item.profile.name }}
-                                    {% if item.profile.is_guest %}<small class="text-danger">(g)</small>{% endif %}
-                                </td>
-                                <td><span class="badge bg-light text-dark border">{{ item.attendance_count }}회</span></td>
-                                <td>
-                                    <form action="{% url 'update_member_rank' item.profile.id %}" method="POST" class="d-flex justify-content-center gap-2">
-                                        {% csrf_token %}
-                                        <select name="group" class="form-select form-select-sm text-center fw-bold" style="width: 80px;">
-                                            <option value="A" {% if item.profile.group == 'A' %}selected{% endif %}>A 조</option>
-                                            <option value="B" {% if item.profile.group == 'B' %}selected{% endif %}>B 조</option>
-                                            <option value="C" {% if item.profile.group == 'C' %}selected{% endif %}>C 조</option>
-                                        </select>
-                                        <button type="submit" class="btn btn-sm btn-dark">변경</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="4" class="py-4 text-muted">등록된 인원이 없습니다.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+                <ul class="nav nav-pills nav-fill mb-3 bg-light p-1 rounded-pill" role="tablist" style="font-size: 0.85rem;">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active fw-bold rounded-pill" data-bs-toggle="pill" data-bs-target="#adminAllTab">전체 인원 ({{ member_data_all|length }})</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-bold rounded-pill" data-bs-toggle="pill" data-bs-target="#adminRegularTab">동호회 인원 ({{ member_data_regular|length }})</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link fw-bold rounded-pill" data-bs-toggle="pill" data-bs-target="#adminGuestTab">게스트 인원 ({{ member_data_guest|length }})</button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content border rounded-3 overflow-hidden">
+                    <!-- 전체 인원 -->
+                    <div class="tab-pane fade show active" id="adminAllTab">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-hover align-middle text-center m-0 admin-member-table" style="font-size: 0.9rem;">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width: 15%;">순위</th>
+                                        <th style="width: 25%;">이름</th>
+                                        <th style="width: 20%;">참여 횟수</th>
+                                        <th style="width: 40%;">현재 조 (수정)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in member_data_all %}
+                                    <tr>
+                                        <td class="text-muted fw-bold">{{ forloop.counter }}</td>
+                                        <td class="fw-bold profile-name-cell">
+                                            {{ item.profile.name }}
+                                            {% if item.profile.is_guest %}<small class="text-danger">(g)</small>{% endif %}
+                                        </td>
+                                        <td><span class="badge bg-light text-dark border">{{ item.attendance_count }}회</span></td>
+                                        <td>
+                                            <form action="{% url 'update_member_rank' item.profile.id %}" method="POST" class="d-flex justify-content-center gap-2" onsubmit="updateMemberAjax(event, this, '{{ item.profile.name }}님의 조가 성공적으로 변경되었습니다.')">
+                                                {% csrf_token %}
+                                                <select name="group" class="form-select form-select-sm text-center fw-bold" style="width: 80px;">
+                                                    <option value="A" {% if item.profile.group == 'A' %}selected{% endif %}>A 조</option>
+                                                    <option value="B" {% if item.profile.group == 'B' %}selected{% endif %}>B 조</option>
+                                                    <option value="C" {% if item.profile.group == 'C' %}selected{% endif %}>C 조</option>
+                                                </select>
+                                                <button type="submit" class="btn btn-sm btn-dark">변경</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="py-4 text-muted">등록된 인원이 없습니다.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- 정규 인원 -->
+                    <div class="tab-pane fade" id="adminRegularTab">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-hover align-middle text-center m-0 admin-member-table" style="font-size: 0.9rem;">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width: 15%;">순위</th>
+                                        <th style="width: 25%;">이름</th>
+                                        <th style="width: 20%;">참여 횟수</th>
+                                        <th style="width: 40%;">현재 조 (수정)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in member_data_regular %}
+                                    <tr>
+                                        <td class="text-muted fw-bold">{{ forloop.counter }}</td>
+                                        <td class="fw-bold profile-name-cell">{{ item.profile.name }}</td>
+                                        <td><span class="badge bg-light text-dark border">{{ item.attendance_count }}회</span></td>
+                                        <td>
+                                            <form action="{% url 'update_member_rank' item.profile.id %}" method="POST" class="d-flex justify-content-center gap-2" onsubmit="updateMemberAjax(event, this, '{{ item.profile.name }}님의 조가 성공적으로 변경되었습니다.')">
+                                                {% csrf_token %}
+                                                <select name="group" class="form-select form-select-sm text-center fw-bold" style="width: 80px;">
+                                                    <option value="A" {% if item.profile.group == 'A' %}selected{% endif %}>A 조</option>
+                                                    <option value="B" {% if item.profile.group == 'B' %}selected{% endif %}>B 조</option>
+                                                    <option value="C" {% if item.profile.group == 'C' %}selected{% endif %}>C 조</option>
+                                                </select>
+                                                <button type="submit" class="btn btn-sm btn-dark">변경</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="4" class="py-4 text-muted">등록된 동호회 인원이 없습니다.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- 게스트 인원 -->
+                    <div class="tab-pane fade" id="adminGuestTab">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-hover align-middle text-center m-0 admin-member-table" style="font-size: 0.9rem;">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width: 15%;">순위</th>
+                                        <th style="width: 25%;">이름</th>
+                                        <th style="width: 20%;">참여 횟수</th>
+                                        <th style="width: 40%;">관리 (승격/수정)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in member_data_guest %}
+                                    <tr>
+                                        <td class="text-muted fw-bold">{{ forloop.counter }}</td>
+                                        <td class="fw-bold profile-name-cell text-danger">{{ item.profile.name }} <small>(g)</small></td>
+                                        <td><span class="badge bg-light text-dark border">{{ item.attendance_count }}회</span></td>
+                                        <td>
+                                            <div class="d-flex justify-content-center gap-2">
+                                                <form action="{% url 'update_member_rank' item.profile.id %}" method="POST" class="d-flex gap-1" onsubmit="updateMemberAjax(event, this, '{{ item.profile.name }}님의 조가 성공적으로 변경되었습니다.')">
+                                                    {% csrf_token %}
+                                                    <select name="group" class="form-select form-select-sm text-center fw-bold" style="width: 65px;">
+                                                        <option value="A" {% if item.profile.group == 'A' %}selected{% endif %}>A</option>
+                                                        <option value="B" {% if item.profile.group == 'B' %}selected{% endif %}>B</option>
+                                                        <option value="C" {% if item.profile.group == 'C' %}selected{% endif %}>C</option>
+                                                    </select>
+                                                    <button type="submit" class="btn btn-sm btn-dark">수정</button>
+                                                </form>
+                                                <form action="{% url 'promote_guest' item.profile.id %}" method="POST" class="promote-form" onsubmit="updateMemberAjax(event, this, '{{ item.profile.name }}님이 정규 인원으로 승격되었습니다.')">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-sm btn-primary fw-bold" onclick="return confirm('정말 정규 인원으로 승격하시겠습니까?');">승격</button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr><td colspan="4" class="py-4 text-muted">등록된 게스트 인원이 없습니다.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
 
             </div>
@@ -1159,11 +1418,9 @@
                     
                     <select name="absentee_id" class="form-select border-danger bg-light fw-bold text-center" required>
                         <option value="" selected disabled>-- 당일 결장자 선택 --</option>
-                        
                         {% for p in participating_profiles %}
                         <option value="{{ p.id }}">{{ p.name }} ({{ p.group }}조)</option>
                         {% endfor %}
-                        
                     </select>
                 </div>
                 <div class="modal-footer border-0 d-flex justify-content-center pb-4">
@@ -1174,14 +1431,103 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="cancelMeetModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-body p-4 text-center">
+                <div class="mb-3"><i class="bi bi-exclamation-triangle-fill text-warning fs-1"></i></div>
+                <h5 class="fw-bold">모임 일정을 취소하시겠습니까?</h5>
+                <p class="text-muted small">취소 시 현재 생성된 모든 대진표와 데이터가 삭제되며,<br>이 작업은 되돌릴 수 없습니다.</p>
+                <div class="d-flex gap-2 justify-content-center mt-4">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">닫기</button>
+                    <a href="{% url 'cancel_meeting' meet.id %}" class="btn btn-secondary rounded-pill px-4 fw-bold">네, 취소합니다</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if is_manager and meet %}
+<div class="modal fade" id="editHandicapModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow" style="border-radius: 15px;">
+            <div class="modal-header bg-secondary text-white border-0" style="border-radius: 13px 13px 0 0;">
+                <h5 class="modal-title fw-bold">⚙️ 핸디캡 수동 수정</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{% url 'update_handicaps' meet.id %}">
+                {% csrf_token %}
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">시스템이 자동 계산한 핸디캡입니다. 필요시 숫자를 지우고 직접 변경하세요. (변경 후 저장 필수)</p>
+                    
+                    {% for m in all_matches %}
+                    <div class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
+                        <div class="fw-bold fs-6" style="font-size: 0.9rem;">
+                            <span class="badge bg-light text-dark border">{{ m.court }}코트</span> 
+                            {{ m.player1.name }} <span class="text-muted small">vs</span> {{ m.player2.name }}
+                        </div>
+                        <div class="d-flex align-items-center gap-2">
+                            <label class="text-muted fw-bold mb-0" style="font-size: 0.85rem;">핸디캡:</label>
+                            <input type="number" name="handicap_{{ m.id }}" class="form-control form-control-sm text-center fw-bold text-primary" style="width: 70px;" value="{{ m.applied_handicap }}" min="0">
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                </div>
+                <div class="modal-footer border-0 d-flex justify-content-center pb-4">
+                    <button type="button" class="btn btn-light rounded-pill px-4" data-bs-dismiss="modal">취소</button>
+                    <button type="submit" class="btn btn-secondary rounded-pill px-4 fw-bold">적용 및 저장하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endif %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    // 동호회 인원 관리 모달창 - 이름 검색 기능
+    function filterAdminMembers() {
+        const input = document.getElementById('adminMemberSearchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('.admin-member-table tbody tr');
+        
+        rows.forEach(row => {
+            const nameCell = row.querySelector('.profile-name-cell');
+            if (nameCell) {
+                const name = nameCell.textContent.toLowerCase();
+                row.style.display = name.includes(input) ? '' : 'none';
+            }
+        });
+    }
+
+    // 동호회 인원 관리 모달창 - 페이지 새로고침 방지 (비동기 처리)
+    function updateMemberAjax(event, form, successMsg) {
+        event.preventDefault(); // 기본 폼 전송(새로고침) 방지
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(response => {
+            if(response.ok) {
+                alert(successMsg);
+                if(form.classList.contains('promote-form')) {
+                    location.reload(); // 게스트 정규 승격 시 탭 간 이동 반영을 위해 새로고침
+                }
+            } else {
+                alert('요청 처리 중 오류가 발생했습니다.');
+            }
+        }).catch(error => {
+            console.error('Error:', error);
+            alert('서버와 통신 중 오류가 발생했습니다.');
+        });
+    }
+
     function filterMembers() {
         const input = document.getElementById('memberSearch').value.toLowerCase(); 
-        const poolList = document.getElementById('pool-list');
-        const cards = poolList.getElementsByClassName('user-card'); 
+        const container = document.getElementById('pool-list-container');
+        const cards = container.getElementsByClassName('user-card'); 
 
         for (let i = 0; i < cards.length; i++) {
             let nameSpan = cards[i].querySelector('.profile-name');
@@ -1197,23 +1543,41 @@
     }
 
     function togglePlayer(element) {
-        const poolList = document.getElementById('pool-list');
         const participantList = document.getElementById('participant-list');
-        const userId = element.getAttribute('data-id');
+        const regularList = document.getElementById('regular-list');
+        const guestList = document.getElementById('guest-list');
+        const isParticipating = element.parentElement.id === 'participant-list';
         
-        // 정규 회원인 경우 hidden checkbox를 토글
-        if(userId) {
-            const checkbox = document.getElementById('hidden-chk-' + userId);
-            if (element.parentElement.id === 'pool-list') {
-                participantList.appendChild(element);
-                checkbox.checked = true;
-                element.classList.add('selected');
-                element.querySelector('.badge').classList.replace('bg-secondary', 'bg-primary');
+        if (!isParticipating) {
+            participantList.appendChild(element);
+            element.classList.add('selected');
+            element.querySelector('.badge').classList.replace('bg-secondary', 'bg-primary');
+            
+            if (element.hasAttribute('data-id')) {
+                document.getElementById('hidden-chk-' + element.getAttribute('data-id')).checked = true;
+            } else if (element.hasAttribute('data-new-guest')) {
+                const uniqueId = element.id;
+                const hiddenContainer = document.getElementById('hidden-inputs');
+                hiddenContainer.insertAdjacentHTML('beforeend', `
+                    <input type="hidden" name="guest_names[]" value="${element.dataset.name}" class="${uniqueId}">
+                    <input type="hidden" name="guest_groups[]" value="${element.dataset.group}" class="${uniqueId}">
+                    <input type="hidden" name="guest_genders[]" value="${element.dataset.gender}" class="${uniqueId}">
+                `);
+            }
+        } else {
+            if (element.getAttribute('data-type') === 'regular') {
+                regularList.appendChild(element);
             } else {
-                poolList.appendChild(element);
-                checkbox.checked = false;
-                element.classList.remove('selected');
-                element.querySelector('.badge').classList.replace('bg-primary', 'bg-secondary');
+                guestList.appendChild(element);
+            }
+            element.classList.remove('selected');
+            element.querySelector('.badge').classList.replace('bg-primary', 'bg-secondary');
+            
+            if (element.hasAttribute('data-id')) {
+                document.getElementById('hidden-chk-' + element.getAttribute('data-id')).checked = false;
+            } else if (element.hasAttribute('data-new-guest')) {
+                const uniqueId = element.id;
+                document.querySelectorAll('.' + uniqueId).forEach(el => el.remove());
             }
         }
         updateParticipantCount();
@@ -1231,55 +1595,39 @@
             return;
         }
 
-        // 1. 화면의 참가 명단에 시각적 카드 생성
-        const participantList = document.getElementById('participant-list');
         const card = document.createElement('div');
         const uniqueId = 'guest_' + Date.now(); // 게스트 식별용 고유 ID
         
-        card.className = 'user-card p-2 mb-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center selected';
-        card.style.borderColor = '#3b82f6';
+        // 1. '게스트 인원' 탭에 카드 생성
+        const guestList = document.getElementById('guest-list');
+        card.id = uniqueId;
+        card.className = 'user-card p-2 mb-2 bg-white rounded shadow-sm d-flex justify-content-between align-items-center';
+        card.setAttribute('data-new-guest', 'true');
+        card.setAttribute('data-type', 'guest');
+        card.setAttribute('data-name', name);
+        card.setAttribute('data-group', group);
+        card.setAttribute('data-gender', gender);
         card.innerHTML = `
-            <span class="fw-bold profile-name">${name} <small class="text-danger fw-bold">(g)</small></span>
-            <span class="badge bg-primary">${group}조</span>
+            <span class="fw-bold profile-name text-danger">${name} <small>(g-신규)</small></span>
+            <span class="badge bg-secondary">${group}조</span>
         `;
         
-        // 게스트 카드를 클릭하면 명단에서 삭제되도록 이벤트 추가
-        card.onclick = function() {
-            this.remove();
-            // 연결된 hidden input들도 함께 삭제
-            document.querySelectorAll(`.${uniqueId}`).forEach(el => el.remove());
-            updateParticipantCount();
-        };
-        participantList.appendChild(card);
+        // 클릭 시 togglePlayer 작동하도록 연결
+        card.onclick = function() { togglePlayer(this); };
+        guestList.appendChild(card);
 
-        // 2. 폼 전송을 위한 Hidden Input 생성
-        const hiddenContainer = document.getElementById('hidden-inputs');
-        
-        const inputName = document.createElement('input');
-        inputName.type = 'hidden';
-        inputName.name = 'guest_names[]';
-        inputName.value = name;
-        inputName.className = uniqueId;
-        
-        const inputGroup = document.createElement('input');
-        inputGroup.type = 'hidden';
-        inputGroup.name = 'guest_groups[]';
-        inputGroup.value = group;
-        inputGroup.className = uniqueId;
-        
-        const inputGender = document.createElement('input');
-        inputGender.type = 'hidden';
-        inputGender.name = 'guest_genders[]';
-        inputGender.value = gender;
-        inputGender.className = uniqueId;
+        // '과거 참석 게스트가 없습니다' 문구 제거
+        const emptyMsg = document.getElementById('empty-guest-msg');
+        if (emptyMsg) emptyMsg.remove();
 
-        hiddenContainer.appendChild(inputName);
-        hiddenContainer.appendChild(inputGroup);
-        hiddenContainer.appendChild(inputGender);
+        // 게스트 탭으로 포커스 자동 전환
+        const guestTabBtn = document.querySelector('button[data-bs-target="#guest-pool"]');
+        if (guestTabBtn) {
+            guestTabBtn.click();
+        }
 
-        // 3. 입력창 초기화 및 인원수 갱신
+        // 2. 입력창 초기화
         nameInput.value = '';
-        updateParticipantCount();
     }
 
     function updateParticipantCount() {
@@ -1306,7 +1654,16 @@
 // 📡 실시간 점수 핀셋 갱신 (5초 주기)
     {% if meet %}
     setInterval(function() {
-        fetch("{% url 'get_live_scores' meet.id %}")
+        // 🌟 수정: 모바일 브라우저의 캐싱을 무력화하기 위해 타임스탬프와 캐시 방지 헤더를 추가
+        fetch("{% url 'get_live_scores' meet.id %}?t=" + new Date().getTime(), {
+            method: 'GET',
+            cache: 'no-store',
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        })
             .then(response => response.json())
             .then(data => {
                 data.matches.forEach(match => {
