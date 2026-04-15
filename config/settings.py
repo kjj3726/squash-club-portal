@@ -23,9 +23,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-w@8#w2$g5-bo(0nm*g$+0v9%*hh81l@zgv6iw(%a5zlsb5wcy^'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'jgkim.pythonanywhere.com',
+]
 
 
 # Application definition
@@ -147,3 +149,7 @@ LOGGING = {
         },
     },
 }
+
+import os
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
