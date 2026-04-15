@@ -112,10 +112,16 @@ def dashboard(request):
         comment_count=Count('comments')
     ).order_by('-is_important', '-created_at')[:5]
     
-    total_notices = Notice.objects.count()
+    # 🌟 일반 공지사항의 총 개수만 계산합니다.
+    total_normal_notices = Notice.objects.filter(is_important=False).count()
     notices = []
-    for i, notice in enumerate(notices_qs):
-        notice.display_id = total_notices - i
+    normal_index = 0
+    for notice in notices_qs:
+        if notice.is_important:
+            notice.display_id = "공지"
+        else:
+            notice.display_id = total_normal_notices - normal_index
+            normal_index += 1
         notices.append(notice)
     top_a = get_top_players('A')
     top_b = get_top_players('B')
@@ -1244,16 +1250,24 @@ def notice_list(request):
     if search_keyword:
         notice_list_qs = notice_list_qs.filter(title__icontains=search_keyword)
 
-    total_count = notice_list_qs.count()
+    # 🌟 일반 공지사항의 총 개수만 계산합니다.
+    total_normal_count = notice_list_qs.filter(is_important=False).count()
     notices_ordered = notice_list_qs.order_by('-is_important', '-created_at')
     
     # 직렬화
     data = []
-    # 🌟 [수정] 전체 개수에서 인덱스를 빼서 최신 글이 큰 번호를 갖도록 역순으로 부여합니다.
-    for i, notice in enumerate(notices_ordered):
+    normal_index = 0
+    for notice in notices_ordered:
+        if notice.is_important:
+            display_no = "공지"
+        else:
+            display_no = total_normal_count - normal_index
+            normal_index += 1
+            
         data.append({
             'id': notice.id,
-            'display_id': total_count - i, # 🌟 정통 게시판 스타일 넘버링
+            'display_id': display_no, # 🌟 중요 공지는 '공지', 일반 글은 빈틈없는 순차 번호
+            'no': display_no, # 프론트엔드 호환성 유지
             'title': escape(notice.title),
             'author': escape(notice.get_author_name()),
             'created_at': notice.created_at.strftime('%Y-%m-%d'),
