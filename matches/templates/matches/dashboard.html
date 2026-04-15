@@ -320,10 +320,11 @@
                         <div style="width: 20%;" class="text-center">작성자</div>
                         <div style="width: 15%;" class="text-center">댓글</div>
                     </div>
+                    
                     {% for notice in notices %}
-                    <div class="notice-item d-flex align-items-center" onclick="openNoticeDetailModal({{ notice.id }}, {{ notice.display_id }})">
+                    <div class="notice-item d-flex align-items-center" onclick="openNoticeDetailModal({{ notice.id }}, {{ forloop.revcounter }})">
                         <div style="width: 15%;" class="text-center">
-                            <span class="badge bg-light text-dark border">No.{{ notice.display_id }}</span>
+                            <span class="badge bg-light text-dark border">No.{{ forloop.revcounter }}</span>
                         </div>
                         <div style="width: 50%;" class="text-truncate ps-2">
                             {% if notice.is_important %}<span class="badge bg-danger me-1">필독</span>{% endif %}
