@@ -112,9 +112,10 @@ def dashboard(request):
         comment_count=Count('comments')
     ).order_by('-is_important', '-created_at')[:5]
     
+    total_notices = Notice.objects.count()
     notices = []
-    for i, notice in enumerate(notices_qs, 1):
-        notice.display_id = i
+    for i, notice in enumerate(notices_qs):
+        notice.display_id = total_notices - i
         notices.append(notice)
     top_a = get_top_players('A')
     top_b = get_top_players('B')
@@ -1243,15 +1244,16 @@ def notice_list(request):
     if search_keyword:
         notice_list_qs = notice_list_qs.filter(title__icontains=search_keyword)
 
+    total_count = notice_list_qs.count()
     notices_ordered = notice_list_qs.order_by('-is_important', '-created_at')
     
     # 직렬화
     data = []
-    # 🌟 [수정] enumerate를 사용해 1부터 시작하는 순번(i)을 만듭니다.
-    for i, notice in enumerate(notices_ordered, 1):
+    # 🌟 [수정] 전체 개수에서 인덱스를 빼서 최신 글이 큰 번호를 갖도록 역순으로 부여합니다.
+    for i, notice in enumerate(notices_ordered):
         data.append({
             'id': notice.id,
-            'display_id': i, # 🌟 여기서 순번을 직접 부여합니다.
+            'display_id': total_count - i, # 🌟 정통 게시판 스타일 넘버링
             'title': escape(notice.title),
             'author': escape(notice.get_author_name()),
             'created_at': notice.created_at.strftime('%Y-%m-%d'),
