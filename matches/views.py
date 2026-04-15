@@ -7,8 +7,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 # 🌟 여기서 F를 정상적으로 불러옵니다.
-from django.db.models import Q, F 
-from .models import Profile, MonthlyMeet, Match, Notice
+from django.db.models import Q, F, Count
+from .models import Profile, MonthlyMeet, Match, Notice, NoticeComment
 from django.contrib.auth.models import User
 from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth import update_session_auth_hash 
@@ -104,7 +104,8 @@ def dashboard(request):
     guest_profiles = Profile.objects.filter(is_owner=False, is_guest=True).order_by('name')
     ranking_profiles = Profile.objects.filter(is_owner=False, is_guest=False)
     
-    notices = Notice.objects.all().order_by('-is_important', '-created_at')[:5]
+    # 🌟 [수정] 공지사항에 댓글 갯수(comment_count)를 함께 조회합니다.
+    notices = Notice.objects.annotate(comment_count=Count('comments')).order_by('-is_important', '-created_at')[:5]
     top_a = get_top_players('A')
     top_b = get_top_players('B')
     top_c = get_top_players('C')
@@ -1207,3 +1208,124 @@ def upload_matches_bulk(request):
             messages.error(request, f"파일 처리 중 오류가 발생했습니다. 양식을 확인해주세요. (에러: {e})")
             
     return redirect('dashboard')
+
+# --- 공지사항 관련 뷰 ---
+
+# 🌟 [신규] 공지사항 목록 (팝업용, AJAX)
+@login_required
+def notice_list(request):
+    search_keyword = request.GET.get('keyword', '')
+    # 🌟 [수정] 댓글 갯수를 함께 조회(annotate)하도록 변경
+    notice_list_qs = Notice.objects.annotate(comment_count=Count('comments'))
+
+    if search_keyword:
+        notice_list_qs = notice_list_qs.filter(title__icontains=search_keyword)
+
+    notices = notice_list_qs.order_by('-is_important', '-created_at')
+    
+    # 직렬화
+    data = []
+    for notice in notices:
+        data.append({
+            'id': notice.id,
+            'title': notice.title,
+            'author': notice.get_author_name(),
+            'created_at': notice.created_at.strftime('%Y-%m-%d'),
+            'is_important': notice.is_important,
+            'comment_count': notice.comment_count, # 🌟 댓글 수 추가
+        })
+    
+    return JsonResponse({'notices': data})
+
+# 🌟 [신규] 공지사항 상세 정보 (팝업용, AJAX)
+@login_required
+def notice_detail(request, notice_id):
+    notice = get_object_or_404(Notice, id=notice_id)
+    # 🌟 조회수 1 증가 (F 객체 사용으로 동시성 문제 방지)
+    notice.view_count = F('view_count') + 1
+    notice.save(update_fields=['view_count'])
+    notice.refresh_from_db() # DB에 저장된 최신 값을 다시 불러옴
+
+    comments = notice.comments.select_related('author__profile').order_by('created_at')
+
+    # 직렬화
+    notice_data = {
+        'id': notice.id,
+        'title': notice.title,
+        'content': notice.content, # HTML 콘텐츠를 그대로 전달
+        'author': notice.get_author_name(),
+        'created_at': notice.created_at.strftime('%Y-%m-%d %H:%M'),
+        'is_important': notice.is_important,
+        'location_name': notice.location_name,
+        'author_display_name': notice.author_display_name,
+        'can_edit': is_manager(request.user), # 수정/삭제 권한 여부
+        'view_count': notice.view_count, # 🌟 조회수 추가
+        'comment_count': comments.count(), # 🌟 댓글 수 추가
+    }
+    
+    comments_data = []
+    for comment in comments:
+        comments_data.append({
+            'id': comment.id,
+            'author': comment.author.profile.name if hasattr(comment.author, 'profile') else comment.author.username,
+            'content': comment.content,
+            'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M'),
+            'can_delete': request.user == comment.author or is_manager(request.user)
+        })
+
+    return JsonResponse({'notice': notice_data, 'comments': comments_data})
+
+# 🌟 [신규] 공지사항 생성/수정
+@login_required
+def notice_save(request):
+    if not is_manager(request.user):
+        messages.error(request, "권한이 없습니다.")
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        notice_id = request.POST.get('notice_id')
+        title = request.POST.get('title')
+        content = request.POST.get('content')
+        is_important = request.POST.get('is_important') == 'on'
+        location_name = request.POST.get('location_name')
+        author_display_name = request.POST.get('author_display_name')
+
+        if notice_id: # 수정
+            notice = get_object_or_404(Notice, id=notice_id)
+            notice.title, notice.content, notice.is_important, notice.location_name = title, content, is_important, location_name
+            if request.user.is_superuser:
+                notice.author_display_name = author_display_name
+            notice.save()
+            messages.success(request, "공지사항이 수정되었습니다.")
+        else: # 생성
+            notice = Notice.objects.create(author=request.user, title=title, content=content, is_important=is_important, location_name=location_name)
+            if request.user.is_superuser and author_display_name:
+                notice.author_display_name = author_display_name
+                notice.save()
+            messages.success(request, "공지사항이 등록되었습니다.")
+    return redirect('dashboard')
+
+# 🌟 [신규] 공지사항 삭제
+@login_required
+def notice_delete(request, notice_id):
+    if request.method == 'POST' and is_manager(request.user):
+        get_object_or_404(Notice, id=notice_id).delete()
+        messages.success(request, "공지사항이 삭제되었습니다.")
+    return redirect('dashboard')
+
+# 🌟 [신규] 댓글 추가/삭제
+@login_required
+def add_notice_comment(request, notice_id):
+    if request.method == 'POST' and request.POST.get('comment_content'):
+        NoticeComment.objects.create(notice_id=notice_id, author=request.user, content=request.POST.get('comment_content'))
+        return JsonResponse({'status': 'success'})
+    return JsonResponse({'status': 'error'}, status=400)
+
+@login_required
+def delete_notice_comment(request, comment_id):
+    if request.method == 'POST':
+        comment = get_object_or_404(NoticeComment, id=comment_id)
+        if request.user == comment.author or is_manager(request.user):
+            comment.delete()
+            return JsonResponse({'status': 'success'})
+    return JsonResponse({'status': 'error'}, status=400)

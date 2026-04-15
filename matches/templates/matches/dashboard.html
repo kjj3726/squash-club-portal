@@ -306,19 +306,38 @@
             <div class="premium-card">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5 class="fw-bold m-0">📢 동호회 공지사항</h5>
-                    {% if is_manager %}<button class="btn btn-sm btn-outline-secondary">글쓰기</button>{% endif %}
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#noticeListModal" onclick="loadNoticeList()">전체보기</button>
+                        {% if is_manager %}
+                        <button class="btn btn-sm btn-dark" onclick="openNoticeFormModal()">글쓰기</button>
+                        {% endif %}
+                    </div>
                 </div>
-                <div>
+                <div id="dashboard-notice-list">
+                    <div class="d-flex text-muted small fw-bold border-bottom pb-2 mb-1" style="font-size: 0.8rem;">
+                        <div style="width: 15%;" class="text-center">구분(No)</div>
+                        <div style="width: 50%;" class="ps-2">제목</div>
+                        <div style="width: 20%;" class="text-center">작성자</div>
+                        <div style="width: 15%;" class="text-center">댓글</div>
+                    </div>
                     {% for notice in notices %}
-                    <div class="notice-item d-flex justify-content-between">
-                        <span>
-                            {% if notice.is_important %}<span class="badge bg-danger me-2">필독</span>{% endif %}
-                            {{ notice.title }}
-                        </span>
-                        <small class="text-muted">{{ notice.created_at|date:"m/d" }}</small>
+                    <div class="notice-item d-flex align-items-center" onclick="openNoticeDetailModal({{ notice.id }})">
+                        <div style="width: 15%;" class="text-center">
+                            <span class="badge bg-light text-dark border">No.{{ notice.id }}</span>
+                        </div>
+                        <div style="width: 50%;" class="text-truncate ps-2">
+                            {% if notice.is_important %}<span class="badge bg-danger me-1">필독</span>{% endif %}
+                            <span class="fw-bold">{{ notice.title }}</span>
+                        </div>
+                        <div style="width: 20%;" class="text-center text-muted small">
+                            {{ notice.get_author_name }}
+                        </div>
+                        <div style="width: 15%;" class="text-center text-muted small">
+                            <span class="badge rounded-pill bg-secondary bg-opacity-25 text-dark">{{ notice.comment_count }}</span>
+                        </div>
                     </div>
                     {% empty %}
-                    <p class="text-muted text-center py-3">등록된 공지사항이 없습니다.</p>
+                    <p class="text-muted text-center py-4">등록된 공지사항이 없습니다.</p>
                     {% endfor %}
                 </div>
             </div>
@@ -707,66 +726,6 @@
                                 <thead class="table-light">
                                     <tr><th class="px-3">순위</th><th class="px-4">이름</th><th class="px-3">승률 (승/패)</th></tr>
                                 </thead>
-                                <tbody>
-                                    {% for stat in all_c %}
-                                    <tr>
-                                        <td>{{ forloop.counter }}</td>
-                                        <td class="fw-bold">{{ stat.profile.name }}</td>
-                                        <td><strong class="text-success">{{ stat.win_rate }}%</strong> <span class="text-muted small">({{ stat.wins }}승 {{ stat.losses }}패)</span></td>
-                                    </tr>
-                                    {% empty %}<tr><td colspan="3" class="py-4 text-muted">C조 인원이 없습니다.</td></tr>{% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-            <div class="modal-footer border-0 pb-4 px-4 d-flex justify-content-center">
-                <button type="button" class="btn btn-light rounded-pill px-5 fw-bold" data-bs-dismiss="modal">닫기</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-                    <div class="tab-pane fade" id="rankATab">
-                        <div class="table-responsive border rounded-3 border-danger border-opacity-25">
-                            <table class="table table-hover align-middle m-0 text-center">
-                                <thead class="table-light"><tr><th style="width:15%">순위</th><th style="width:35%">이름</th><th style="width:50%">승률 (승/패)</th></tr></thead>
-                                <tbody>
-                                    {% for stat in all_a %}
-                                    <tr>
-                                        <td>{{ forloop.counter }}</td>
-                                        <td class="fw-bold">{{ stat.profile.name }}</td>
-                                        <td><strong class="text-danger">{{ stat.win_rate }}%</strong> <span class="text-muted small">({{ stat.wins }}승 {{ stat.losses }}패)</span></td>
-                                    </tr>
-                                    {% empty %}<tr><td colspan="3" class="py-4 text-muted">A조 인원이 없습니다.</td></tr>{% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="tab-pane fade" id="rankBTab">
-                        <div class="table-responsive border rounded-3 border-primary border-opacity-25">
-                            <table class="table table-hover align-middle m-0 text-center">
-                                <thead class="table-light"><tr><th style="width:15%">순위</th><th style="width:35%">이름</th><th style="width:50%">승률 (승/패)</th></tr></thead>
-                                <tbody>
-                                    {% for stat in all_b %}
-                                    <tr>
-                                        <td>{{ forloop.counter }}</td>
-                                        <td class="fw-bold">{{ stat.profile.name }}</td>
-                                        <td><strong class="text-primary">{{ stat.win_rate }}%</strong> <span class="text-muted small">({{ stat.wins }}승 {{ stat.losses }}패)</span></td>
-                                    </tr>
-                                    {% empty %}<tr><td colspan="3" class="py-4 text-muted">B조 인원이 없습니다.</td></tr>{% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-
-                    <div class="tab-pane fade" id="rankCTab">
-                        <div class="table-responsive border rounded-3 border-success border-opacity-25">
-                            <table class="table table-hover align-middle m-0 text-center">
-                                <thead class="table-light"><tr><th style="width:15%">순위</th><th style="width:35%">이름</th><th style="width:50%">승률 (승/패)</th></tr></thead>
                                 <tbody>
                                     {% for stat in all_c %}
                                     <tr>
@@ -1486,6 +1445,146 @@
 </div>
 {% endif %}
 
+<!-- ================================================================= -->
+<!-- 🌟 [신규] 공지사항 관련 모달 (Notice Feature Modals) 🌟 -->
+<!-- ================================================================= -->
+
+{% if is_manager %}
+<!-- Notice Create/Edit Modal -->
+<div class="modal fade" id="noticeFormModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <form id="noticeForm" action="{% url 'notice_save' %}" method="POST" class="modal-content">
+            {% csrf_token %}
+            <input type="hidden" name="notice_id" id="form_notice_id">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="noticeFormModalTitle">공지사항 작성</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {% if user.is_superuser %}
+                <div class="mb-3">
+                    <label for="form_author_display_name" class="form-label small fw-bold">작성자명 (총관리자용)</label>
+                    <input type="text" name="author_display_name" id="form_author_display_name" class="form-control" placeholder="미입력 시 '사장님' 또는 본인 이름으로 표시">
+                </div>
+                {% endif %}
+                <div class="mb-3">
+                    <label for="form_title" class="form-label small fw-bold">제목</label>
+                    <input type="text" name="title" id="form_title" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label for="form_content" class="form-label small fw-bold">내용</label>
+                    <textarea name="content" id="form_content" class="form-control" rows="10"></textarea>
+                    <small class="text-muted">※ 이곳에 Summernote, CKEditor 등 Rich Text Editor를 적용하여 글 색상, 볼드체 기능을 구현할 수 있습니다.</small>
+                </div>
+                <div class="mb-3">
+                    <label for="form_location_name" class="form-label small fw-bold">장소/위치 이름 (선택)</label>
+                    <input type="text" name="location_name" id="form_location_name" class="form-control" placeholder="예: OO식당 (네이버/카카오맵 검색 링크 생성)">
+                </div>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" role="switch" name="is_important" id="form_is_important">
+                    <label class="form-check-label" for="form_is_important">중요 공지(필독)로 지정</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">취소</button>
+                <button type="submit" class="btn btn-primary">저장하기</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Notice List Modal -->
+<div class="modal fade" id="noticeListModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">📢 전체 공지사항</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" id="noticeSearchInput" class="form-control" placeholder="제목으로 검색..." onkeyup="loadNoticeList(this.value)">
+                </div>
+                <table class="table table-hover align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 10%;" class="text-center">No</th>
+                            <th>제목</th>
+                            <th style="width: 15%;" class="text-center">작성자</th>
+                            <th style="width: 18%;" class="text-center">작성일</th>
+                            <th style="width: 10%;" class="text-center">댓글</th>
+                        </tr>
+                    </thead>
+                    <tbody id="noticeListTableBody">
+                        <!-- AJAX will populate this -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notice Detail Modal -->
+<div class="modal fade" id="noticeDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header flex-column align-items-start border-bottom-0 pb-0">
+                <div class="d-flex justify-content-between w-100 mb-2">
+                    <div class="d-flex gap-2 align-items-center">
+                        <span id="detail_id_badge" class="badge bg-secondary border"></span>
+                        <span id="detail_important_badge" class="badge bg-danger" style="display:none;">📌 고정(필독)</span>
+                    </div>
+                    <div>
+                    <button id="detail_edit_btn" class="btn btn-sm btn-outline-secondary" style="display: none;">수정</button>
+                    <form id="detail_delete_form" method="POST" style="display: none;">
+                        {% csrf_token %}
+                        <button id="detail_delete_btn" type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('정말 삭제하시겠습니까?');">삭제</button>
+                    </form>
+                        <button type="button" class="btn-close ms-2" data-bs-dismiss="modal"></button>
+                    </div>
+                </div>
+                <h4 class="modal-title fw-bold w-100 text-dark" id="detail_title"></h4>
+            </div>
+            <div class="modal-body pt-2">
+                <div class="d-flex justify-content-between align-items-center text-muted small mb-4 border-bottom pb-3 flex-wrap">
+                    <span>작성자: <strong id="detail_author" class="text-dark fs-6"></strong></span>
+                    <div class="d-flex gap-3">
+                        <span>조회 <strong id="detail_view_count" class="text-dark"></strong></span>
+                        <span>댓글 <strong id="detail_comment_count" class="text-dark"></strong></span>
+                        <span id="detail_created_at"></span>
+                    </div>
+                </div>
+                <div id="detail_content" class="mb-4" style="min-height: 100px; line-height: 1.8;"></div>
+
+                <!-- Location Info -->
+                <div id="detail_location_section" class="mb-4" style="display: none;">
+                    <h6 class="fw-bold">📍 장소 정보</h6>
+                    <div class="p-3 bg-light rounded border d-flex align-items-center justify-content-between">
+                        <strong id="detail_location_name"></strong>
+                        <div>
+                            <a id="detail_kakao_map" href="#" target="_blank" class="btn btn-sm btn-warning fw-bold ms-3">카카오맵</a>
+                            <a id="detail_naver_map" href="#" target="_blank" class="btn btn-sm btn-success fw-bold">네이버지도</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Comments -->
+                <h6 class="fw-bold">댓글</h6>
+                <div id="detail_comments_list" class="mb-3"></div>
+                
+                <form id="commentForm" method="POST" onsubmit="addComment(event)">
+                    {% csrf_token %}
+                    <div class="input-group">
+                        <input type="text" name="comment_content" class="form-control" placeholder="댓글을 입력하세요..." required>
+                        <button class="btn btn-dark" type="submit">등록</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     // 동호회 인원 관리 모달창 - 이름 검색 기능
@@ -1701,6 +1800,163 @@
             .catch(error => console.error('실시간 점수 동기화 실패:', error));
     }, 5000); // 5000ms = 5초
     {% endif %}
+
+    // =================================================================
+    // 🌟 [신규] 공지사항 관련 스크립트 (Notice Feature Scripts) 🌟
+    // =================================================================
+    const noticeFormEl = document.getElementById('noticeFormModal');
+    const noticeFormModal = noticeFormEl ? new bootstrap.Modal(noticeFormEl) : null;
+    const noticeDetailModal = new bootstrap.Modal(document.getElementById('noticeDetailModal'));
+    const noticeListModal = new bootstrap.Modal(document.getElementById('noticeListModal'));
+
+    // 공지사항 생성/수정 폼 열기
+    function openNoticeFormModal(noticeId = null) {
+        const form = document.getElementById('noticeForm');
+        form.reset();
+        document.getElementById('form_notice_id').value = '';
+        
+        if (noticeId) { // 수정 모드
+            document.getElementById('noticeFormModalTitle').innerText = '공지사항 수정';
+            fetch(`/notices/${noticeId}/`)
+                .then(res => res.json()).then(data => {
+                    const n = data.notice;
+                    document.getElementById('form_notice_id').value = n.id;
+                    document.getElementById('form_title').value = n.title;
+                    document.getElementById('form_content').value = n.content; 
+                    document.getElementById('form_location_name').value = n.location_name || '';
+                    document.getElementById('form_is_important').checked = n.is_important;
+                    {% if user.is_superuser %}
+                    if (document.getElementById('form_author_display_name')) {
+                        document.getElementById('form_author_display_name').value = n.author_display_name || '';
+                    }
+                    {% endif %}
+                    noticeFormModal.show();
+                });
+        } else { // 생성 모드
+            document.getElementById('noticeFormModalTitle').innerText = '공지사항 작성';
+            noticeFormModal.show();
+        }
+    }
+
+    // 공지사항 상세 보기
+    function openNoticeDetailModal(noticeId) {
+        fetch(`/notices/${noticeId}/`).then(res => res.json()).then(data => {
+            const n = data.notice;
+            document.getElementById('detail_id_badge').innerText = '구분: No.' + n.id;
+            document.getElementById('detail_important_badge').style.display = n.is_important ? 'inline-block' : 'none';
+            document.getElementById('detail_title').innerText = n.title;
+            document.getElementById('detail_author').innerText = n.author;
+            document.getElementById('detail_view_count').innerText = n.view_count;
+            document.getElementById('detail_comment_count').innerText = n.comment_count;
+            document.getElementById('detail_created_at').innerText = n.created_at;
+            document.getElementById('detail_content').innerHTML = n.content;
+
+            const locSection = document.getElementById('detail_location_section');
+            if (n.location_name) {
+                document.getElementById('detail_location_name').innerText = n.location_name;
+                const encoded = encodeURIComponent(n.location_name);
+                document.getElementById('detail_kakao_map').href = `https://map.kakao.com/link/search/${encoded}`;
+                document.getElementById('detail_naver_map').href = `https://map.naver.com/v5/search/${encoded}`;
+                locSection.style.display = 'block';
+            } else {
+                locSection.style.display = 'none';
+            }
+
+            if (n.can_edit) {
+                const editBtn = document.getElementById('detail_edit_btn');
+                editBtn.style.display = 'inline-block';
+                editBtn.onclick = () => { noticeDetailModal.hide(); openNoticeFormModal(n.id); };
+                
+                const deleteForm = document.getElementById('detail_delete_form');
+                deleteForm.action = `/notices/${n.id}/delete/`;
+                deleteForm.style.display = 'inline-block';
+            } else {
+                document.getElementById('detail_edit_btn').style.display = 'none';
+                document.getElementById('detail_delete_form').style.display = 'none';
+            }
+
+            const commentsList = document.getElementById('detail_comments_list');
+            commentsList.innerHTML = '';
+            if (data.comments.length > 0) {
+                data.comments.forEach(c => {
+                    const delBtn = c.can_delete ? `<button class="btn btn-xs btn-outline-danger py-0" onclick="deleteComment(${c.id}, ${n.id})">삭제</button>` : '';
+                    commentsList.innerHTML += `
+                        <div class="border-bottom pb-2 mb-2">
+                            <div class="d-flex justify-content-between">
+                                <span class="fw-bold small">${c.author}</span> ${delBtn}
+                            </div>
+                            <p class="mb-1 small" style="white-space: pre-wrap;">${c.content}</p>
+                            <small class="text-muted" style="font-size: 0.75rem;">${c.created_at}</small>
+                        </div>`;
+                });
+            } else {
+                commentsList.innerHTML = '<p class="text-muted small">작성된 댓글이 없습니다.</p>';
+            }
+
+            const commentForm = document.getElementById('commentForm');
+            commentForm.setAttribute('data-notice-id', n.id);
+            noticeDetailModal.show();
+        }).catch(err => console.error("공지사항 정보를 불러오는데 실패했습니다:", err));
+    }
+
+    // 공지사항 목록 로드 (검색 기능 포함)
+    function loadNoticeList(keyword = '') {
+        const url = `{% url 'notice_list' %}?keyword=${encodeURIComponent(keyword)}`;
+        fetch(url).then(res => res.json()).then(data => {
+            const tbody = document.getElementById('noticeListTableBody');
+            tbody.innerHTML = '';
+            if (data.notices.length > 0) {
+                data.notices.forEach(n => {
+                    const badge = n.is_important ? '<span class="badge bg-danger me-1">필독</span> ' : '';
+                    tbody.innerHTML += `
+                        <tr style="cursor: pointer;" onclick="noticeListModal.hide(); openNoticeDetailModal(${n.id});">
+                            <td class="text-center text-muted fw-bold">${n.id}</td>
+                            <td>${badge}<span class="fw-bold text-dark">${n.title}</span></td>
+                            <td class="text-center">${n.author}</td>
+                            <td class="text-center text-muted small">${n.created_at}</td>
+                            <td class="text-center"><span class="badge rounded-pill bg-secondary bg-opacity-50 text-dark">${n.comment_count}</span></td>
+                        </tr>`;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">공지사항이 없습니다.</td></tr>';
+            }
+        });
+    }
+
+    // 댓글 추가
+    function addComment(event) {
+        event.preventDefault();
+        const form = event.target;
+        const noticeId = form.getAttribute('data-notice-id');
+        const url = `/notices/${noticeId}/add_comment/`;
+        fetch(url, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(res => res.json()).then(data => {
+            if (data.status === 'success') {
+                form.reset();
+                openNoticeDetailModal(noticeId); // 댓글 목록 새로고침
+            } else { alert('댓글 등록 실패'); }
+        });
+    }
+
+    // 댓글 삭제
+    function deleteComment(commentId, noticeId) {
+        if (!confirm('댓글을 삭제하시겠습니까?')) return;
+        const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        fetch(`/notices/comments/${commentId}/delete/`, {
+            method: 'POST',
+            headers: { 
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrf
+            }
+        }).then(res => res.json()).then(data => {
+            if (data.status === 'success') {
+                openNoticeDetailModal(noticeId); // 댓글 목록 새로고침
+            } else { alert('댓글 삭제 실패'); }
+        });
+    }
 </script>
 </body>
 </html>

@@ -55,6 +55,36 @@ class Notice(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     is_important = models.BooleanField(default=False) # 중요 공지 여부 (상단 고정용)
+    view_count = models.PositiveIntegerField(default=0, verbose_name="조회수")
+
+    # 🌟 [신규] 작성자, 작성자명 재정의, 위치 정보 필드 추가
+    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="작성자")
+    author_display_name = models.CharField(max_length=50, blank=True, null=True, verbose_name="작성자명(관리자용)")
+    location_name = models.CharField(max_length=100, blank=True, null=True, verbose_name="장소/위치 이름")
 
     def __str__(self):
         return self.title
+
+    # 🌟 [신규] 화면에 표시될 최종 작성자 이름을 결정하는 함수
+    def get_author_name(self):
+        if self.author_display_name:
+            return self.author_display_name
+        if self.author:
+            if hasattr(self.author, 'profile') and self.author.profile.is_owner:
+                return "사장님"
+            if hasattr(self.author, 'profile'):
+                return self.author.profile.name
+            return self.author.username
+        return "알 수 없음"
+
+# 🌟 [신규] 공지사항 댓글 모델
+class NoticeComment(models.Model):
+    notice = models.ForeignKey(Notice, on_delete=models.CASCADE, related_name='comments')
+    author = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="댓글 작성자")
+    content = models.TextField(verbose_name="댓글 내용")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        if self.author.profile:
+            return f"'{self.notice.title}'의 댓글 by {self.author.profile.name}"
+        return f"'{self.notice.title}'의 댓글 by {self.author.username}"

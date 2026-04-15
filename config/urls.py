@@ -64,4 +64,12 @@ urlpatterns = [
 
     # (신규) 핸디캡 수동 수정 URL
     path('meet/<int:meet_id>/handicaps/update/', views.update_handicaps, name='update_handicaps'),
+
+    # 🌟 공지사항 관련 URL 추가
+    path('notices/', views.notice_list, name='notice_list'),
+    path('notices/save/', views.notice_save, name='notice_save'),
+    path('notices/<int:notice_id>/', views.notice_detail, name='notice_detail'),
+    path('notices/<int:notice_id>/delete/', views.notice_delete, name='notice_delete'),
+    path('notices/<int:notice_id>/add_comment/', views.add_notice_comment, name='add_notice_comment'),
+    path('notices/comments/<int:comment_id>/delete/', views.delete_notice_comment, name='delete_notice_comment'),
 ]
