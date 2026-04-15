@@ -88,3 +88,16 @@ class NoticeComment(models.Model):
         if self.author.profile:
             return f"'{self.notice.title}'의 댓글 by {self.author.profile.name}"
         return f"'{self.notice.title}'의 댓글 by {self.author.username}"
+
+# 🌟 [신규] 시스템/에러 로그를 DB에 저장하기 위한 모델
+class AppLog(models.Model):
+    level = models.CharField(max_length=20, verbose_name="로그 레벨")
+    message = models.TextField(verbose_name="로그 내용")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="발생 일시")
+
+    class Meta:
+        verbose_name = "시스템 로그"
+        verbose_name_plural = "시스템 로그 목록"
+
+    def __str__(self):
+        return f"[{self.level}] {self.message[:50]}"

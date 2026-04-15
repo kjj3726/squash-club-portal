@@ -14,6 +14,7 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth import update_session_auth_hash 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Side, Font
+from django.utils.html import escape
 
 
 # --- (신규) 권한 체크용 헬퍼 함수 ---
@@ -483,15 +484,21 @@ def signup(request):
         return redirect('dashboard')
 
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        name = request.POST.get('name')
+        # 🌟 [보안 수정] 공백 제거 및 글자 수 제한으로 DB 에러 방어
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        name = request.POST.get('name', '').strip()[:20] 
         group = request.POST.get('group')
         gender = request.POST.get('gender')
 
+        # 🌟 필수 항목 누락 시 방어 로직
+        if not username or not password or not name:
+            messages.error(request, '필수 항목을 모두 입력해주세요.')
+            return redirect('signup')
+
         # 아이디 중복 체크 방어 로직
         if User.objects.filter(username=username).exists():
-            messages.error(request, '이미 사용 중인 아이디입니다.')
+            messages.error(request, '이미 사용 중인 아이디입니다. 다른 아이디를 입력해주세요.')
             return redirect('signup')
 
         # 1. Django 기본 User 계정 생성
@@ -530,7 +537,8 @@ def add_member_by_admin(request):
 # (신규) 9. 오늘 모임 최종 마감 함수
 @login_required
 def finalize_meet(request, meet_id):
-    if not is_manager(request.user):
+    # 🌟 [보안 수정] 권한 체크뿐만 아니라 GET 요청을 통한 CSRF 공격을 방어하기 위해 POST 요청만 허용
+    if request.method != 'POST' or not is_manager(request.user):
         return redirect('dashboard')
     
     meet = get_object_or_404(MonthlyMeet, id=meet_id)
@@ -662,10 +670,14 @@ def custom_logout(request):
 @login_required
 def change_password(request):
     if request.method == 'POST':
-        old_pw = request.POST.get('old_password')
-        new_pw = request.POST.get('new_password')
+        old_pw = request.POST.get('old_password', '')
+        new_pw = request.POST.get('new_password', '').strip()
         user = request.user
         
+        if not new_pw:
+            messages.error(request, "새 비밀번호를 올바르게 입력해주세요.")
+            return redirect('dashboard')
+            
         if user.check_password(old_pw):
             user.set_password(new_pw)
             user.save()
@@ -1090,14 +1102,15 @@ def get_live_scores(request, meet_id):
             'p1_score': m.p1_score if m.p1_score is not None else '-',
             'p2_score': m.p2_score if m.p2_score is not None else '-',
             'is_completed': m.is_completed,
-            'recorded_by': m.recorded_by.profile.name if m.recorded_by else '-'
+            'recorded_by': escape(m.recorded_by.profile.name) if m.recorded_by else '-' # 🌟 [보안 수정] 이름 XSS 방어
         })
     return JsonResponse({'matches': data})
 
 # 25. 📅 모임 일정 취소 (DB에서 삭제)
 @login_required
 def cancel_meeting(request, meet_id):
-    if not is_manager(request.user):
+    # 🌟 [보안 수정] 권한 체크뿐만 아니라 GET 요청을 통한 CSRF 공격을 방어하기 위해 POST 요청만 허용
+    if request.method != 'POST' or not is_manager(request.user):
         return redirect('dashboard')
     
     meet = get_object_or_404(MonthlyMeet, id=meet_id)
@@ -1228,8 +1241,8 @@ def notice_list(request):
     for notice in notices:
         data.append({
             'id': notice.id,
-            'title': notice.title,
-            'author': notice.get_author_name(),
+            'title': escape(notice.title), # 🌟 [보안 수정] JSON 응답 XSS 방어
+            'author': escape(notice.get_author_name()), # 🌟 [보안 수정] JSON 응답 XSS 방어
             'created_at': notice.created_at.strftime('%Y-%m-%d'),
             'is_important': notice.is_important,
             'comment_count': notice.comment_count, # 🌟 댓글 수 추가
@@ -1252,12 +1265,12 @@ def notice_detail(request, notice_id):
     notice_data = {
         'id': notice.id,
         'title': notice.title,
-        'content': notice.content, # HTML 콘텐츠를 그대로 전달
+        'content': escape(notice.content), # 🌟 [보안 수정] XSS 공격 방지를 위해 HTML을 escape 처리합니다.
         'author': notice.get_author_name(),
         'created_at': notice.created_at.strftime('%Y-%m-%d %H:%M'),
         'is_important': notice.is_important,
-        'location_name': notice.location_name,
-        'author_display_name': notice.author_display_name,
+        'location_name': escape(notice.location_name) if notice.location_name else '', # 🌟 [보안 수정] 부가 정보 XSS 방어
+        'author_display_name': escape(notice.author_display_name) if notice.author_display_name else '',
         'can_edit': is_manager(request.user), # 수정/삭제 권한 여부
         'view_count': notice.view_count, # 🌟 조회수 추가
         'comment_count': comments.count(), # 🌟 댓글 수 추가
@@ -1268,7 +1281,7 @@ def notice_detail(request, notice_id):
         comments_data.append({
             'id': comment.id,
             'author': comment.author.profile.name if hasattr(comment.author, 'profile') else comment.author.username,
-            'content': comment.content,
+            'content': escape(comment.content), # 🌟 [보안 수정] XSS 공격 방지를 위해 HTML을 escape 처리합니다.
             'created_at': comment.created_at.strftime('%Y-%m-%d %H:%M'),
             'can_delete': request.user == comment.author or is_manager(request.user)
         })

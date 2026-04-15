@@ -116,3 +116,34 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# 🌟 [신규] Django 시스템 로깅 설정
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'db_log': {
+            'level': 'WARNING', # WARNING 이상의 심각한 에러/경고만 DB에 저장 (INFO까지 모두 담으면 DB 용량 과부하)
+            'class': 'matches.log_handler.DatabaseLogHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'db_log'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
