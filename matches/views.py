@@ -107,14 +107,15 @@ def dashboard(request):
     guest_profiles = Profile.objects.filter(is_owner=False, is_guest=True).order_by('name')
     ranking_profiles = Profile.objects.filter(is_owner=False, is_guest=False)
 
-    # 🌟 [수정] 공지사항에 댓글 갯수(comment_count)와 순번(display_id)을 함께 조회합니다.
-    notices = Notice.objects.annotate(
-        comment_count=Count('comments'),
-        display_id=Window(
-            expression=RowNumber(),
-            order_by=F('created_at').asc()
-        )
+    # 🌟 [수정] DB에서 목록을 가져온 후, 파이썬에서 순차 번호를 부여합니다.
+    notices_qs = Notice.objects.annotate(
+        comment_count=Count('comments')
     ).order_by('-is_important', '-created_at')[:5]
+    
+    notices = []
+    for i, notice in enumerate(notices_qs, 1):
+        notice.display_id = i
+        notices.append(notice)
     top_a = get_top_players('A')
     top_b = get_top_players('B')
     top_c = get_top_players('C')
@@ -1236,25 +1237,23 @@ def upload_matches_bulk(request):
 @login_required
 def notice_list(request):
     search_keyword = request.GET.get('keyword', '')
-    # 🌟 [수정] 댓글 갯수와 순번을 함께 조회(annotate)하도록 변경
-    notice_list_qs = Notice.objects.annotate(
-        comment_count=Count('comments'),
-        display_id=Window(expression=RowNumber(), order_by=F('created_at').asc())
-    )
+    # 🌟 [수정] 먼저 댓글 수만 조회하고, 순번은 파이썬에서 직접 매깁니다.
+    notice_list_qs = Notice.objects.annotate(comment_count=Count('comments'))
 
     if search_keyword:
         notice_list_qs = notice_list_qs.filter(title__icontains=search_keyword)
 
-    notices = notice_list_qs.order_by('-is_important', '-created_at')
-
+    notices_ordered = notice_list_qs.order_by('-is_important', '-created_at')
+    
     # 직렬화
     data = []
-    for notice in notices:
+    # 🌟 [수정] enumerate를 사용해 1부터 시작하는 순번(i)을 만듭니다.
+    for i, notice in enumerate(notices_ordered, 1):
         data.append({
             'id': notice.id,
-            'display_id': notice.display_id, # 🌟 순번 추가
-            'title': escape(notice.title), # 🌟 [보안 수정] JSON 응답 XSS 방어
-            'author': escape(notice.get_author_name()), # 🌟 [보안 수정] JSON 응답 XSS 방어
+            'display_id': i, # 🌟 여기서 순번을 직접 부여합니다.
+            'title': escape(notice.title),
+            'author': escape(notice.get_author_name()),
             'created_at': notice.created_at.strftime('%Y-%m-%d'),
             'is_important': notice.is_important,
             'comment_count': notice.comment_count,
