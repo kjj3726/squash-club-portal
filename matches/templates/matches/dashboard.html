@@ -321,9 +321,9 @@
                         <div style="width: 15%;" class="text-center">댓글</div>
                     </div>
                     {% for notice in notices %}
-                    <div class="notice-item d-flex align-items-center" onclick="openNoticeDetailModal({{ notice.id }})">
+                    <div class="notice-item d-flex align-items-center" onclick="openNoticeDetailModal({{ notice.id }}, {{ notice.display_id }})">
                         <div style="width: 15%;" class="text-center">
-                            <span class="badge bg-light text-dark border">No.{{ notice.id }}</span>
+                            <span class="badge bg-light text-dark border">No.{{ notice.display_id }}</span>
                         </div>
                         <div style="width: 50%;" class="text-truncate ps-2">
                             {% if notice.is_important %}<span class="badge bg-danger me-1">필독</span>{% endif %}
@@ -1850,10 +1850,12 @@
     }
 
     // 공지사항 상세 보기
-    function openNoticeDetailModal(noticeId) {
+    function openNoticeDetailModal(noticeId, displayId) {
         fetch(`/notices/${noticeId}/`).then(res => res.json()).then(data => {
             const n = data.notice;
-            document.getElementById('detail_id_badge').innerText = '구분: No.' + n.id;
+            // 🌟 [수정] 목록에서 전달받은 순차 번호(displayId)를 우선으로 표시합니다.
+            const num_to_display = displayId || n.id;
+            document.getElementById('detail_id_badge').innerText = '구분: No.' + num_to_display;
             document.getElementById('detail_important_badge').style.display = n.is_important ? 'inline-block' : 'none';
             document.getElementById('detail_title').innerText = n.title;
             document.getElementById('detail_author').innerText = n.author;
@@ -1919,9 +1921,10 @@
             if (data.notices.length > 0) {
                 data.notices.forEach(n => {
                     const badge = n.is_important ? '<span class="badge bg-danger me-1">필독</span> ' : '';
+                    // 🌟 [수정] 고유 ID(n.id) 대신 순차 번호(n.display_id)를 표시하고, 상세 보기 함수에 두 값을 모두 전달합니다.
                     tbody.innerHTML += `
-                        <tr style="cursor: pointer;" onclick="noticeListModal.hide(); openNoticeDetailModal(${n.id});">
-                            <td class="text-center text-muted fw-bold">${n.id}</td>
+                        <tr style="cursor: pointer;" onclick="noticeListModal.hide(); openNoticeDetailModal(${n.id}, ${n.display_id});">
+                            <td class="text-center text-muted fw-bold">${n.display_id}</td>
                             <td>${badge}<span class="fw-bold text-dark">${n.title}</span></td>
                             <td class="text-center">${n.author}</td>
                             <td class="text-center text-muted small">${n.created_at}</td>

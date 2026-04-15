@@ -7,7 +7,9 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 # 🌟 여기서 F를 정상적으로 불러옵니다.
-from django.db.models import Q, F, Count
+from django.db.models import Q, F, Count, Window
+# 🌟 [수정] 순차 번호를 매기기 위한 RowNumber 함수를 불러옵니다.
+from django.db.models.functions import RowNumber
 from .models import Profile, MonthlyMeet, Match, Notice, NoticeComment
 from django.contrib.auth.models import User
 from django.contrib.auth import login, authenticate, logout
@@ -104,9 +106,15 @@ def dashboard(request):
     regular_profiles = Profile.objects.filter(is_owner=False, is_guest=False).order_by('name')
     guest_profiles = Profile.objects.filter(is_owner=False, is_guest=True).order_by('name')
     ranking_profiles = Profile.objects.filter(is_owner=False, is_guest=False)
-    
-    # 🌟 [수정] 공지사항에 댓글 갯수(comment_count)를 함께 조회합니다.
-    notices = Notice.objects.annotate(comment_count=Count('comments')).order_by('-is_important', '-created_at')[:5]
+
+    # 🌟 [수정] 공지사항에 댓글 갯수(comment_count)와 순번(display_id)을 함께 조회합니다.
+    notices = Notice.objects.annotate(
+        comment_count=Count('comments'),
+        display_id=Window(
+            expression=RowNumber(),
+            order_by=F('created_at').asc()
+        )
+    ).order_by('-is_important', '-created_at')[:5]
     top_a = get_top_players('A')
     top_b = get_top_players('B')
     top_c = get_top_players('C')
@@ -1228,24 +1236,28 @@ def upload_matches_bulk(request):
 @login_required
 def notice_list(request):
     search_keyword = request.GET.get('keyword', '')
-    # 🌟 [수정] 댓글 갯수를 함께 조회(annotate)하도록 변경
-    notice_list_qs = Notice.objects.annotate(comment_count=Count('comments'))
+    # 🌟 [수정] 댓글 갯수와 순번을 함께 조회(annotate)하도록 변경
+    notice_list_qs = Notice.objects.annotate(
+        comment_count=Count('comments'),
+        display_id=Window(expression=RowNumber(), order_by=F('created_at').asc())
+    )
 
     if search_keyword:
         notice_list_qs = notice_list_qs.filter(title__icontains=search_keyword)
 
     notices = notice_list_qs.order_by('-is_important', '-created_at')
-    
+
     # 직렬화
     data = []
     for notice in notices:
         data.append({
             'id': notice.id,
+            'display_id': notice.display_id, # 🌟 순번 추가
             'title': escape(notice.title), # 🌟 [보안 수정] JSON 응답 XSS 방어
             'author': escape(notice.get_author_name()), # 🌟 [보안 수정] JSON 응답 XSS 방어
             'created_at': notice.created_at.strftime('%Y-%m-%d'),
             'is_important': notice.is_important,
-            'comment_count': notice.comment_count, # 🌟 댓글 수 추가
+            'comment_count': notice.comment_count,
         })
     
     return JsonResponse({'notices': data})
