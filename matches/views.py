@@ -1212,7 +1212,10 @@ def upload_matches_bulk(request):
             success_count = 0
             for row in reader:
                 if len(row) >= 7:
-                    date_str, title, court, p1_name, p2_name, p1_score, p2_score = [col.strip() for col in row[:7]]
+                    date_str, title, court, p1_name, p2_name, p1_score, p2_score = [
+                        col.replace('\ufeff', '').replace('“', '').replace('”', '').replace('"', '').strip() 
+                        for col in row[:7]
+                    ]
                     
                     # DB에서 선수 프로필 찾기 (동명이인 처리 로직이 필요하다면 고도화 가능)
                     p1 = Profile.objects.filter(name=p1_name).first()
